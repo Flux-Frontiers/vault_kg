@@ -1,0 +1,70 @@
+# pyproject.toml -- vault-kg package configuration (PEP 621)
+#
+# Obsidian-style Markdown vaults as fleet knowledge graphs.
+#
+#   pip install -e "."              graph build + analyze (no embedding stack)
+#   pip install -e ".[semantic]"    + query / pack
+#   poetry install --with dev       + pytest, ruff
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "vaultkg", from = "src" }]
+
+[project]
+name = "vault-kg"
+version = "0.1.0"
+description = "Obsidian-style Markdown vaults as KGModule knowledge graphs: wikilinks, typed links, tags and headings, no LLM extraction"
+readme = "README.md"
+license = "Elastic-2.0"
+authors = [
+    { name = "Eric G. Suchanek, PhD", email = "suchanek@flux-frontiers.com" }
+]
+keywords = ["knowledge-graph", "kgmodule", "obsidian", "markdown", "wikilinks"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "click>=8.1.0,<9",
+    # 0.23.0: KGModule.query()/pack() validate their arguments.
+    "kgmodule-utils>=0.23.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+semantic = ["kgmodule-utils[semantic]>=0.23.0"]
+
+[project.urls]
+Repository = "https://github.com/Flux-Frontiers/vault_kg"
+
+[project.scripts]
+vaultkg = "vaultkg.cli:cli"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=9.0.3"
+ruff = ">=0.15,<0.16"
+# The stub-embedder tests build a real sqlite-vec index.
+sqlite-vec = "0.1.9"
+numpy = ">=1.26.0"
+
+[tool.ruff]
+line-length    = 100
+target-version = "py312"
+extend-exclude = [".claude", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B023", "BLE001", "PLC0415"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "-v --tb=short"
