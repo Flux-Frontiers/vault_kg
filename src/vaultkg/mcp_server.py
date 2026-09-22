@@ -267,7 +267,12 @@ def main(argv: list[str] | None = None) -> None:
 
     args = _parse_args(argv)
     vault = Path(args.vault).resolve()
-    _kg = VaultKG(vault, db_path=args.db)
+    kg = VaultKG(vault, db_path=args.db)
+    if not kg.db_path.exists():
+        # Opening the store would create an empty graph, which every tool would
+        # then report as a vault with no notes. Refuse, as the CLI does.
+        raise SystemExit(f"vaultkg-mcp: no graph at {kg.db_path}; run `vaultkg build` first")
+    _kg = kg
     _snapshot_mgr = SnapshotManager(vault / VaultKG._default_dir / "snapshots", db_path=_kg.db_path)
     mcp.run(transport=args.transport)
 

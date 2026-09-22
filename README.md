@@ -47,15 +47,27 @@ hybrid semantic-plus-structural design, each for a different kind of corpus.
 
 **Requirements:** Python >= 3.12, < 3.14
 
+To use the `vaultkg` and `vaultkg-mcp` commands from any directory, install
+them as a tool:
+
+```bash
+uv tool install "vault-kg[semantic]"      # or: pipx install "vault-kg[semantic]"
+```
+
+To use VaultKG as a library in your own project:
+
 ```bash
 pip install "vault-kg[semantic]"
 ```
 
-The `semantic` extra adds the embedding model and vector index for `query`,
-`pack` and the matching MCP tools. Without it, everything else works; build with
-`--no-index`.
+The `semantic` extra adds the embedding stack (PyTorch and
+sentence-transformers) for `query`, `pack` and the matching MCP tools. The
+first full build downloads the embedding model, `BAAI/bge-small-en-v1.5`, about
+130 MB. Without the extra, `build --no-index`, `analyze`, `stats`, `links`,
+`snapshot` and the rest of the MCP server work, and `query` says which package
+is missing.
 
-To work on VaultKG, install from a clone:
+To work on VaultKG itself, install from a clone:
 
 ```bash
 git clone https://github.com/Flux-Frontiers/vault_kg.git
@@ -70,17 +82,68 @@ vaultkg build --vault ~/brain                 # writes ~/brain/.vaultkg/
 vaultkg analyze --vault ~/brain               # graph-health report
 vaultkg query --vault ~/brain "why long contexts fail"
 vaultkg pack  --vault ~/brain "why long contexts fail"
-vaultkg links --vault ~/brain --in "wiki/Retrieval"    # backlinks
+vaultkg links --vault ~/brain --in wiki/Retrieval     # backlinks
 vaultkg snapshot save --vault ~/brain
 ```
 
-- `build --no-index` skips embeddings. `analyze`, `stats` and `links` work without them.
-- `--exclude PATTERN` (repeatable) skips folders such as `templates` or `raw`.
-  Dot-folders (`.obsidian/`, `.trash/`, `.vaultkg/`) are always skipped.
-- A note can be named by its node id (`note:wiki/Retrieval.md`) or its vault
-  path, with or without `.md`.
+A note can be named by its node id (`note:wiki/Retrieval.md`) or by its vault
+path, with or without `.md`. `--vault` defaults to the current directory.
 
-Obsidian ignores dot-folders, so the `.vaultkg/` store never shows up as a note.
+### Keep the graph current
+
+`build` rebuilds the whole graph from the notes on disk; there's no incremental
+update. Run it again after you edit the vault.
+
+- **Excluded folders aren't remembered.** Pass the same `--exclude` options on
+  every build, or the next build indexes those folders again.
+- **Keep the default `--wipe`.** `--no-wipe` adds and updates nodes but never
+  removes them, so deleted and renamed notes stay in the graph.
+- **`--no-index` removes an existing vector index**, because an index from an
+  earlier build no longer matches the graph. Run a full `build` before you use
+  `query` or `pack` again.
+
+### Where the graph is stored
+
+`build` writes to `<vault>/.vaultkg/`:
+
+| Path | Contents |
+|---|---|
+| `graph.sqlite` | Nodes and edges |
+| `vectors.sqlite` | The vector index (full builds only) |
+| `snapshots/` | Metric snapshots from `vaultkg snapshot save` |
+
+Obsidian ignores dot-folders, so the store never shows up as a note. If the
+vault is a git repository, ignore the databases and keep the snapshots:
+
+```gitignore
+.vaultkg/*.sqlite
+.vaultkg/*.sqlite-*
+```
+
+If a sync service copies the vault between devices, exclude `.vaultkg/` there
+and rebuild on each device.
+
+---
+
+## CLI reference
+
+Every command takes `--vault DIR` (default: the current directory) and `--help`.
+
+| Command | What it does | Options |
+|---|---|---|
+| `vaultkg build` | Parse the vault into a graph and a vector index | `--exclude PATTERN` (repeatable; a folder name or a glob on vault-relative paths), `--no-index`, `--wipe/--no-wipe` (default `--wipe`) |
+| `vaultkg analyze` | Print the graph-health report | `--json` for the metrics as JSON |
+| `vaultkg stats` | Print node and edge counts as JSON | |
+| `vaultkg query Q` | Semantic search, then expansion along links | `-k` seed hits (1-100, default 8), `--hop` link hops (0-5, default 1), `--json` for the full result |
+| `vaultkg pack Q` | The same search, printed as Markdown with each note's text | `-k`, `--hop` |
+| `vaultkg links NODE` | A node's outgoing links | `--in` for backlinks, `--rel REL` for one relation, `--limit` (1-500, default 50) |
+| `vaultkg snapshot save [KEY]` | Record the current metrics (key defaults to a UTC timestamp) | `--force` to save when nothing changed |
+| `vaultkg snapshot list` | List snapshots, newest first | |
+| `vaultkg snapshot diff A B` | Compare two snapshots | |
+| `vaultkg --version` | Print the installed version | |
+
+`query` and `pack` need the `semantic` extra and a build without `--no-index`.
+The other commands need only a built graph.
 
 ---
 
@@ -165,8 +228,16 @@ Copilot, Claude Desktop). To serve a vault, add it to the client's `.mcp.json`:
 
 Out-of-range arguments are rejected with a message naming the range, never
 clamped: `k` 1-100, `hop` 0-5, `max_nodes` and `limit` 1-500. The server
-supports the `stdio` (default) and `sse` transports, and closes the graph when
-it stops.
+closes the graph when it stops.
+
+| Option | Meaning |
+|---|---|
+| `--vault DIR` | Vault root (default: the current directory). `--repo` is accepted as an alias. |
+| `--db PATH` | Graph database (default: `<vault>/.vaultkg/graph.sqlite`) |
+| `--transport {stdio,sse}` | MCP transport (default: `stdio`) |
+
+Build the vault before you start the server. The server doesn't build it, and
+exits with an error if `<vault>/.vaultkg/graph.sqlite` doesn't exist.
 
 ---
 

@@ -7,11 +7,15 @@ the ``semantic`` extra and a build without ``--no-index``).
 
 from __future__ import annotations
 
+import importlib.util
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import click
 from kg_utils.validation import MAX_HOP, MAX_K
+from kg_utils.vector_backend import VectorStoreNotFoundError
 
 from vaultkg.module import MAX_LIMIT, VaultKG
 
@@ -21,6 +25,35 @@ def _open(vault: str) -> VaultKG:
     if not kg.db_path.exists():
         raise click.ClickException(f"no graph at {kg.db_path}; run `vaultkg build` first")
     return kg
+
+
+#: Top-level modules the ``semantic`` extra installs for query and pack.
+_SEMANTIC_MODULES = frozenset({"sentence_transformers", "torch", "transformers", "sqlite_vec"})
+
+
+def _missing_semantic() -> list[str]:
+    """The ``semantic`` extra's modules that are not installed."""
+    return sorted(m for m in _SEMANTIC_MODULES if importlib.util.find_spec(m) is None)
+
+
+@contextmanager
+def _search_errors() -> Iterator[None]:
+    """Turn the ways a search can fail before it starts into CLI errors."""
+    try:
+        yield
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+    except ModuleNotFoundError as exc:
+        if (exc.name or "").split(".")[0] not in _SEMANTIC_MODULES:
+            raise
+        raise click.ClickException(
+            f"query and pack need the semantic extra ({exc.name} is not installed): "
+            'pip install "vault-kg[semantic]"'
+        ) from exc
+    except VectorStoreNotFoundError as exc:
+        raise click.ClickException(
+            "no vector index; run `vaultkg build` without --no-index first"
+        ) from exc
 
 
 vault_option = click.option(
@@ -50,9 +83,34 @@ def cli() -> None:
 @click.option("--wipe/--no-wipe", default=True, show_default=True, help="Rebuild from scratch.")
 def build(vault: str, exclude: tuple[str, ...], no_index: bool, wipe: bool) -> None:
     """Parse the vault into a graph (and a vector index)."""
+    # Checked up front: the index is built last, after the whole graph.
+    if not no_index and (missing := _missing_semantic()):
+        raise click.UsageError(
+            f"the vector index needs the semantic extra (missing {', '.join(missing)}); "
+            'pip install "vault-kg[semantic]", or pass --no-index'
+        )
     with VaultKG(vault, exclude=exclude) as kg:
-        stats = kg.build_graph(wipe=wipe) if no_index else kg.build(wipe=wipe)
+        if no_index:
+            # The SDK's build_graph() leaves any existing index alone. After a
+            # graph-only rebuild that index describes the previous graph, so
+            # query would seed from notes that may be gone; remove it instead.
+            stale = [
+                p
+                for p in (
+                    kg.vectors_path,
+                    *kg.vectors_path.parent.glob(kg.vectors_path.name + "-*"),
+                )
+                if p.exists()
+            ]
+            for p in stale:
+                p.unlink()
+            stats = kg.build_graph(wipe=wipe)
+        else:
+            stale = []
+            stats = kg.build(wipe=wipe)
     click.echo(str(stats))
+    if stale:
+        click.echo("removed the stale vector index; run `vaultkg build` to rebuild it")
 
 
 @cli.command()
@@ -85,11 +143,8 @@ def stats(vault: str) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Print the full result as JSON.")
 def query(vault: str, q: str, k: int, hop: int, as_json: bool) -> None:
     """Search notes and sections, then follow their links."""
-    with _open(vault) as kg:
-        try:
-            res = kg.query(q, k=k, hop=hop)
-        except ValueError as exc:
-            raise click.UsageError(str(exc)) from exc
+    with _open(vault) as kg, _search_errors():
+        res = kg.query(q, k=k, hop=hop)
     if as_json:
         click.echo(res.to_json())
         return
@@ -109,11 +164,8 @@ def query(vault: str, q: str, k: int, hop: int, as_json: bool) -> None:
 )
 def pack(vault: str, q: str, k: int, hop: int) -> None:
     """Search and print the matching note text as Markdown."""
-    with _open(vault) as kg:
-        try:
-            click.echo(kg.pack(q, k=k, hop=hop).to_markdown())
-        except ValueError as exc:
-            raise click.UsageError(str(exc)) from exc
+    with _open(vault) as kg, _search_errors():
+        click.echo(kg.pack(q, k=k, hop=hop).to_markdown())
 
 
 @cli.command()
