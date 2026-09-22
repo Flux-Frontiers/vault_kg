@@ -208,9 +208,20 @@ def test_build_no_index_drops_a_stale_vector_index(built: VaultKG) -> None:
     assert "removed the stale vector index" in r.output
 
 
-def test_query_and_pack_without_an_index_say_so(vault: Path) -> None:
+def test_query_and_pack_without_an_index_say_so(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     runner = CliRunner()
     assert runner.invoke(cli, ["build", "--vault", str(vault), "--no-index"]).exit_code == 0
+
+    # Stub the embedder so the check reached is the missing index, not the
+    # missing semantic extra (CI installs no extras).
+    def stubbed(*args: object, **kwargs: object) -> VaultKG:
+        kg = VaultKG(*args, **kwargs)  # type: ignore[arg-type]
+        kg._embedder = HashEmbedder()
+        return kg
+
+    monkeypatch.setattr("vaultkg.cli.VaultKG", stubbed)
     for cmd in ("query", "pack"):
         r = runner.invoke(cli, [cmd, "--vault", str(vault), "long contexts"])
         assert r.exit_code == 1
