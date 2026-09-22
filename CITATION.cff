@@ -1,0 +1,30 @@
+cff-version: "1.2.0"
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "VaultKG: Obsidian Vaults as Knowledge Graphs"
+abstract: >
+  VaultKG turns an Obsidian-style Markdown vault into a queryable knowledge
+  graph. Notes, headings, tags, attachments and unresolved link targets are
+  nodes; wikilinks, Markdown links, embeds, tags and typed links (Dataview
+  inline fields and frontmatter keys holding wikilinks) are edges. The graph
+  is parsed from what the author wrote, with no model extraction, so the same
+  vault always builds the same graph. It supports semantic search with link
+  expansion, backlinks, a graph-health report and metric snapshots, through a
+  CLI and an MCP server.
+authors:
+  - family-names: Suchanek
+    given-names: "Eric G., PhD"
+    orcid: "https://orcid.org/0009-0009-0891-1507"
+    email: suchanek@flux-frontiers.com
+    affiliation: "Flux-Frontiers"
+version: "0.1.0"
+license-url: "https://www.elastic.co/licensing/elastic-license"
+repository-code: "https://github.com/Flux-Frontiers/vault_kg"
+url: "https://github.com/Flux-Frontiers/vault_kg"
+keywords:
+  - knowledge-graph
+  - obsidian
+  - markdown
+  - wikilinks
+  - sqlite-vec
+  - kgmodule

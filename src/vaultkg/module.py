@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -10,12 +11,19 @@ from kg_utils.extractor import KGExtractor
 from kg_utils.pipeline import KGModule
 from kg_utils.specs import QueryResult, SnippetPack
 from kg_utils.store import GraphStore
+from kg_utils.validation import bounded_int
 
 from vaultkg import __version__
 from vaultkg.analysis import VaultHealth, render_report, vault_health
 from vaultkg.extractor import STRUCTURAL_RELS, VaultExtractor
 
 _KIND_PRIORITY = {"note": 0, "heading": 1, "tag": 2, "attachment": 3}
+
+#: Node id prefixes the extractor writes (``missing:`` is an unresolved target).
+_ID_PREFIXES = ("note:", "heading:", "tag:", "attachment:", "missing:")
+#: Upper bound on :meth:`VaultKG.links` results and on node id length.
+MAX_LIMIT = 500
+MAX_ID_LEN = 500
 
 #: What the SDK's generic ``GraphStore.stats()`` computes for a code graph. A
 #: vault has no modules or functions, so these are dropped rather than
@@ -132,6 +140,56 @@ class VaultKG(KGModule):
         s["unresolved"] = nc.get("symbol", 0)
         return s
 
+    # ------------------------------------------------------------ lookup
+    def node(self, node_id: str) -> dict[str, Any] | None:
+        """One node, by id or by the note's vault path.
+
+        :param node_id: ``note:wiki/X.md``, ``heading:...``, ``tag:...``, or a
+            bare vault path such as ``wiki/X.md`` or ``wiki/X``.
+        :return: The node, or ``None`` if there is none.
+        :raises ValueError: On an empty or over-long id.
+        """
+        return self.store.node(normalize_node_id(node_id))
+
+    def links(
+        self, node_id: str, *, direction: str = "out", rel: str = "", limit: int = 50
+    ) -> list[dict[str, Any]]:
+        """Links at a node: what it links to, or what links to it (backlinks).
+
+        :param node_id: Node id or vault path, as for :meth:`node`.
+        :param direction: ``"out"`` (the node is the source) or ``"in"``.
+        :param rel: One relation (``LINKS_TO``, ``SUPPORTS``...), or ``""`` for all.
+        :param limit: Links returned, 1-500.
+        :return: ``{rel, node, kind, name, evidence}`` per link, ordered by
+            relation then node id.
+        :raises ValueError: On a bad id, direction or limit.
+        """
+        nid = normalize_node_id(node_id)
+        if direction not in ("out", "in"):
+            raise ValueError(f"direction must be 'out' or 'in', got {direction!r}")
+        bounded_int("limit", limit, 1, MAX_LIMIT)
+        near, far = ("src", "dst") if direction == "out" else ("dst", "src")
+        sql = (
+            f"SELECT e.rel, e.{far}, n.kind, n.name, e.evidence FROM edges e "
+            f"LEFT JOIN nodes n ON n.id = e.{far} WHERE e.{near} = ?"
+        )
+        params: list[Any] = [nid]
+        if rel:
+            sql += " AND e.rel = ?"
+            params.append(rel.strip().upper())
+        sql += f" ORDER BY e.rel, e.{far} LIMIT ?"
+        params.append(limit)
+        return [
+            {
+                "rel": r[0],
+                "node": r[1],
+                "kind": r[2],
+                "name": r[3],
+                "evidence": json.loads(r[4]) if r[4] else {},
+            }
+            for r in self.store.con.execute(sql, params)
+        ]
+
     def health(self) -> VaultHealth:
         """Graph-health figures (hubs, orphans, bridges, wanted pages...)."""
         return vault_health(self.store.con)
@@ -142,3 +200,25 @@ class VaultKG(KGModule):
             return render_report(self.health(), self.stats())
         except Exception as exc:  # noqa: BLE001 -- contract: never raise
             return f"# VaultKG Analysis\n\nAnalysis failed: {exc}\n"
+
+
+def normalize_node_id(raw: str) -> str:
+    """Normalise a node id supplied from outside (a CLI argument, an MCP call).
+
+    Agents echo ids back with backticks or quotes, and people type a note's
+    path rather than its id, so ``wiki/X``, ``wiki/X.md`` and ``note:wiki/X.md``
+    all name the same note.
+
+    :param raw: The id as given.
+    :return: A node id with one of the extractor's prefixes.
+    :raises ValueError: If empty after stripping, or longer than 500 characters.
+    """
+    nid = raw.strip().strip("`'\"").strip()
+    if not nid:
+        raise ValueError("node_id must not be empty")
+    if len(nid) > MAX_ID_LEN:
+        raise ValueError(f"node_id must be at most {MAX_ID_LEN} characters, got {len(nid)}")
+    if nid.startswith(_ID_PREFIXES):
+        return nid
+    path = nid.lstrip("/")
+    return "note:" + (path if path.lower().endswith(".md") else path + ".md")
