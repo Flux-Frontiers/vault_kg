@@ -11,29 +11,209 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache virtualenv
+        uses: actions/cache@v6
+        with:
+          path: .venv
+          key: lint-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+
+      - name: Install dev dependencies
+        run: poetry install --no-interaction --with dev
+
+      - name: Check formatting
+        run: poetry run ruff format --check .
+
+      - name: Lint
+        run: poetry run ruff check .
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache virtualenv
+        uses: actions/cache@v6
+        with:
+          path: .venv
+          key: typecheck-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+
+      # No semantic extra: nothing under src/ imports the embedding stack
+      # directly (kgmodule-utils does, lazily), so ty resolves every import
+      # vaultkg makes without pulling torch onto the runner.
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
+
+      - name: Run ty
+        run: poetry run ty check src/
+
   test:
-    name: Lint & Test (Python ${{ matrix.python }})
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.12", "3.13"]
+        python-version: ["3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python }}
+          python-version: ${{ matrix.python-version }}
 
-      # No embedding model: the tests use a hashing stub embedder, so only the
-      # sqlite-vec store is needed, not torch.
-      - name: Install
-        run: pip install -e . "kgmodule-utils[sqlite-vec]>=0.23.0" numpy pytest "ruff>=0.15,<0.16"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
 
-      - name: Format
-        run: ruff format --check .
+      - name: Cache virtualenv
+        uses: actions/cache@v6
+        with:
+          path: .venv
+          key: test-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
 
-      - name: Lint
-        run: ruff check .
+      # No semantic extra: the suite embeds with a hashing stub (tests/conftest.py)
+      # into a real sqlite-vec index, which the dev group installs, so the query
+      # and pack paths run without a model download.
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
 
-      - name: Test
-        run: pytest
+      # --cov activates the fail_under gate in [tool.coverage.report]; it is
+      # not repeated here, so there is one number to keep in sync. -rs prints
+      # the reason for any skip, so a skipped test is visible rather than green.
+      - name: Run tests
+        run: poetry run pytest -rs --cov --cov-report=term-missing
+
+  wheel:
+    name: Installed CLI
+    runs-on: ubuntu-latest
+    # Guards what the other jobs cannot see: they run against the source tree,
+    # so they pass even when the built wheel is missing modules the CLI imports
+    # or declares a dependency in a form PyPI strips from wheel metadata.
+    #
+    # This builds the artifact users actually receive, installs it core-only
+    # somewhere with no source tree in sight, and puts it through three gates:
+    #
+    #   1. every console-script entry point loads. entry_point.load() imports
+    #      the module and resolves the attribute without calling it, so the MCP
+    #      server entry point is verified, not started.
+    #   2. a small vault builds and answers analyze, stats and links. Gate 1
+    #      proves the code imports; only this proves it runs. --no-index keeps
+    #      it free of the semantic extra and any model download.
+    #   3. every packaged submodule imports.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Build wheel
+        run: poetry build
+
+      - name: Install the wheel into a clean venv
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --quiet dist/*.whl
+
+      - name: Load every console-script entry point
+        run: |
+          cd /tmp
+          /tmp/smoke/bin/python - <<'PY'
+          import importlib.metadata as md
+          import sys
+
+          eps = [e for e in md.distribution("vault-kg").entry_points
+                 if e.group == "console_scripts"]
+          if not eps:
+              sys.exit("no console scripts found in the installed distribution")
+
+          failed = []
+          for e in sorted(eps, key=lambda e: e.name):
+              try:
+                  e.load()
+                  print(f"  ok    {e.name} -> {e.value}")
+              except Exception as exc:
+                  failed.append(e.name)
+                  print(f"  FAIL  {e.name} -> {e.value}\n        {type(exc).__name__}: {exc}")
+          if failed:
+              sys.exit(f"\n{len(failed)} console script(s) unusable when installed: "
+                       + ", ".join(failed))
+          print(f"\nall {len(eps)} console scripts load from a clean install")
+          PY
+
+      - name: Build a small vault and query it end to end
+        run: |
+          mkdir -p /tmp/vault/notes
+          printf '# Home\n\nStart at [[Ideas]]. #index\n' > /tmp/vault/Home.md
+          printf -- '---\ncreated: 2026-09-01\n---\n# Ideas\n\nsupports:: [[Home]]\n' \
+            > /tmp/vault/notes/Ideas.md
+          cd /tmp
+          /tmp/smoke/bin/vaultkg build --vault /tmp/vault --no-index
+          test -f /tmp/vault/.vaultkg/graph.sqlite || { echo "no graph.sqlite"; exit 1; }
+          /tmp/smoke/bin/vaultkg stats --vault /tmp/vault | tee /tmp/stats.out
+          grep -q '"notes": 2' /tmp/stats.out || { echo "expected 2 notes"; exit 1; }
+          /tmp/smoke/bin/vaultkg links --vault /tmp/vault --in Home | tee /tmp/links.out
+          grep -q "SUPPORTS" /tmp/links.out || { echo "typed backlink missing"; exit 1; }
+          /tmp/smoke/bin/vaultkg analyze --vault /tmp/vault | head -3
+          echo "end-to-end build + stats + links OK"
+
+      - name: Import every packaged submodule
+        run: |
+          cd /tmp
+          /tmp/smoke/bin/python - <<'PY'
+          import importlib
+          import pkgutil
+          import sys
+
+          import vaultkg
+
+          names = [m.name for m in pkgutil.walk_packages(vaultkg.__path__, "vaultkg.")]
+          if not names:
+              sys.exit("vaultkg has no submodules -- the wheel is missing its package body")
+
+          failed = []
+          for name in sorted(names):
+              try:
+                  importlib.import_module(name)
+              except Exception as exc:
+                  failed.append(name)
+                  print(f"  FAIL  {name}\n        {type(exc).__name__}: {exc}")
+          if failed:
+              sys.exit(f"\n{len(failed)} of {len(names)} submodule(s) fail to import "
+                       "from the installed wheel: " + ", ".join(failed))
+          print(f"all {len(names)} packaged submodules import from a clean install")
+          PY

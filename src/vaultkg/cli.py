@@ -11,8 +11,9 @@ import json
 from pathlib import Path
 
 import click
+from kg_utils.validation import MAX_HOP, MAX_K
 
-from vaultkg.module import VaultKG
+from vaultkg.module import MAX_LIMIT, VaultKG
 
 
 def _open(vault: str) -> VaultKG:
@@ -77,8 +78,10 @@ def stats(vault: str) -> None:
 @cli.command()
 @vault_option
 @click.argument("q")
-@click.option("-k", default=8, show_default=True, help="Seed hits.")
-@click.option("--hop", default=1, show_default=True, help="Link hops to expand.")
+@click.option("-k", default=8, show_default=True, type=click.IntRange(1, MAX_K), help="Seed hits.")
+@click.option(
+    "--hop", default=1, show_default=True, type=click.IntRange(0, MAX_HOP), help="Link hops."
+)
 @click.option("--json", "as_json", is_flag=True, help="Print the full result as JSON.")
 def query(vault: str, q: str, k: int, hop: int, as_json: bool) -> None:
     """Search notes and sections, then follow their links."""
@@ -100,8 +103,10 @@ def query(vault: str, q: str, k: int, hop: int, as_json: bool) -> None:
 @cli.command()
 @vault_option
 @click.argument("q")
-@click.option("-k", default=8, show_default=True, help="Seed hits.")
-@click.option("--hop", default=1, show_default=True, help="Link hops to expand.")
+@click.option("-k", default=8, show_default=True, type=click.IntRange(1, MAX_K), help="Seed hits.")
+@click.option(
+    "--hop", default=1, show_default=True, type=click.IntRange(0, MAX_HOP), help="Link hops."
+)
 def pack(vault: str, q: str, k: int, hop: int) -> None:
     """Search and print the matching note text as Markdown."""
     with _open(vault) as kg:
@@ -109,6 +114,24 @@ def pack(vault: str, q: str, k: int, hop: int) -> None:
             click.echo(kg.pack(q, k=k, hop=hop).to_markdown())
         except ValueError as exc:
             raise click.UsageError(str(exc)) from exc
+
+
+@cli.command()
+@vault_option
+@click.argument("node_id")
+@click.option("--in", "backlinks", is_flag=True, help="Show backlinks instead of outgoing links.")
+@click.option("--rel", default="", help="Only this relation (LINKS_TO, SUPPORTS...).")
+@click.option("--limit", default=50, show_default=True, type=click.IntRange(1, MAX_LIMIT))
+def links(vault: str, node_id: str, backlinks: bool, rel: str, limit: int) -> None:
+    """Links at NODE_ID (a node id or a note's vault path); --in for backlinks."""
+    direction = "in" if backlinks else "out"
+    with _open(vault) as kg:
+        try:
+            rows = kg.links(node_id, direction=direction, rel=rel, limit=limit)
+        except ValueError as exc:
+            raise click.UsageError(str(exc)) from exc
+    for r in rows:
+        click.echo(f"{r['rel']:<12} {'<-' if backlinks else '->'} {r['node']}")
 
 
 @cli.group()

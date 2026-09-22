@@ -1,8 +1,47 @@
-.venv/
 __pycache__/
-*.egg-info/
+*.py[cod]
+.venv/
 dist/
+build/
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
-# Built graphs of a vault under test; a real vault keeps its own .vaultkg/.
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.DS_Store
+uv.lock
+
+# A vault's own graph. A real vault keeps its .vaultkg/ beside its notes; one
+# built under this repo is a test or demo run and is never tracked.
 .vaultkg/
+
+# === KG generated artifacts (normalized across the fleet) ===
+# Databases, vector indexes and model caches are transient and
+# reproducible. snapshots/ is TRACKED and must never be ignored --
+# never use a bare `**/.<ns>/` pattern here, it swallows snapshots too.
+
+**/.pycodekg/*.sqlite
+**/.pycodekg/*.sqlite-shm
+**/.pycodekg/*.sqlite-wal
+**/.pycodekg/*.db
+**/.pycodekg/models
+
+**/.dockg/*.sqlite
+**/.dockg/*.sqlite-shm
+**/.dockg/*.sqlite-wal
+**/.dockg/*.db
+**/.dockg/models
+**/.dockg/embeddings.json
+
+# AgentKG local store -- nothing under it is ever tracked
+**/.agentkg/
+
+# Agent scratch dirs (Claude Code / Codex)
+.agents/
+.codex/
+
+# MCP server config -- machine-specific, contains absolute paths
+.mcp.json.sav
+# === end KG generated artifacts ===

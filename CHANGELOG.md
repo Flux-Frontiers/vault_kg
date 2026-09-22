@@ -27,5 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fleet contracts**: frontmatter `date`/`created` map to the temporal keys
   `occurred_start`/`recorded_at`. The build stamps `_kgrag_meta` with the
   builder version, and snapshots go through the shared `SnapshotManager`.
-- **`vaultkg` CLI**: `build`, `analyze`, `stats`, `query`, `pack`,
-  `snapshot save|list|diff`.
+- **`vaultkg` CLI**: `build`, `analyze`, `stats`, `query`, `pack`, `links`,
+  `snapshot save|list|diff`. `links --in` lists a note's backlinks. Numeric
+  options are range-checked at parse time (`k` 1-100, `hop` 0-5, `--limit`
+  1-500).
+- **`vaultkg-mcp` server** (FastMCP, stdio or SSE): `graph_stats`,
+  `query_vault`, `pack_vault`, `get_node`, `note_links` (outgoing links or
+  backlinks, optionally one relation), `analyze_vault`, `snapshot_list`,
+  `snapshot_show` and `snapshot_diff`. `query()`/`pack()` arguments are
+  validated by the `KGModule` base; node ids, link limits and snapshot keys
+  are validated before use, and a snapshot key can't name a path outside the
+  snapshots directory. A `lifespan` hook closes the graph when the server
+  stops.
+- **`VaultKG.node()` and `VaultKG.links()`**, shared by the CLI and the MCP
+  server. Both accept a node id or a note's vault path (`wiki/X`,
+  `wiki/X.md`, `note:wiki/X.md`).
+- **Fleet tooling**: Poetry lock, a `dev` group (pytest, pytest-cov, ruff, ty,
+  pre-commit, detect-secrets), pre-commit hooks that call the venv directly,
+  a 90% coverage floor, and `[tool.pycodekg]`/`[tool.dockg]` index settings.
+  CI runs lint, `ty`, the suite on Python 3.12 and 3.13, and an installed-wheel
+  job that loads every console script, builds a vault end to end, and imports
+  every submodule. `release.yml` publishes to PyPI by trusted publishing.
