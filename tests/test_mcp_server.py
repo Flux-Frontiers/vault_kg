@@ -194,7 +194,17 @@ def test_parse_args_accepts_repo_alias() -> None:
     assert (args.vault, args.transport, args.db) == ("/tmp/v", "sse", None)
 
 
-def test_main_opens_the_vault(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_refuses_an_unbuilt_vault(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mcp_server.mcp, "run", lambda transport: None)
+    with pytest.raises(SystemExit, match="run `vaultkg build` first"):
+        mcp_server.main(["--vault", str(vault)])
+    assert mcp_server._kg is None
+    assert not (vault / ".vaultkg" / "graph.sqlite").exists()
+
+
+def test_main_opens_the_vault(built: VaultKG, monkeypatch: pytest.MonkeyPatch) -> None:
+    vault = built.repo_root
+    built.close()
     ran: list[str] = []
     monkeypatch.setattr(mcp_server.mcp, "run", lambda transport: ran.append(transport))
     try:

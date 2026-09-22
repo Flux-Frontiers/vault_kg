@@ -193,3 +193,72 @@ def test_cli_snapshot_list_and_diff(vault: Path) -> None:
     assert r.exit_code == 0 and "v1" in r.output and "v2" in r.output
     r = runner.invoke(cli, ["snapshot", "diff", "--vault", str(vault), "v1", "v2"])
     assert r.exit_code == 0, r.output
+
+
+def test_build_no_index_drops_a_stale_vector_index(built: VaultKG) -> None:
+    # A graph-only rebuild must not leave the previous build's vectors behind:
+    # query would seed from nodes the new graph may no longer have.
+    vault = built.repo_root
+    vectors = built.vectors_path
+    built.close()
+    assert vectors.exists()
+    r = CliRunner().invoke(cli, ["build", "--vault", str(vault), "--no-index"])
+    assert r.exit_code == 0, r.output
+    assert not vectors.exists()
+    assert "removed the stale vector index" in r.output
+
+
+def test_query_and_pack_without_an_index_say_so(vault: Path) -> None:
+    runner = CliRunner()
+    assert runner.invoke(cli, ["build", "--vault", str(vault), "--no-index"]).exit_code == 0
+    for cmd in ("query", "pack"):
+        r = runner.invoke(cli, [cmd, "--vault", str(vault), "long contexts"])
+        assert r.exit_code == 1
+        assert "no vector index" in r.output
+
+
+@pytest.mark.parametrize("missing", ["sentence_transformers", "torch.nn", "sqlite_vec"])
+def test_query_without_the_semantic_extra_says_so(
+    built: VaultKG, monkeypatch: pytest.MonkeyPatch, missing: str
+) -> None:
+    vault = str(built.repo_root)
+    built.close()
+
+    def no_extra(self: VaultKG, *args: object, **kwargs: object) -> None:
+        raise ModuleNotFoundError(f"No module named {missing!r}", name=missing)
+
+    monkeypatch.setattr(VaultKG, "query", no_extra)
+    r = CliRunner().invoke(cli, ["query", "--vault", vault, "x"])
+    assert r.exit_code == 1
+    assert 'pip install "vault-kg[semantic]"' in r.output
+
+
+def test_an_unrelated_missing_module_is_not_disguised(
+    built: VaultKG, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    vault = str(built.repo_root)
+    built.close()
+
+    def broken(self: VaultKG, *args: object, **kwargs: object) -> None:
+        raise ModuleNotFoundError("No module named 'yaml'", name="yaml")
+
+    monkeypatch.setattr(VaultKG, "query", broken)
+    r = CliRunner().invoke(cli, ["query", "--vault", vault, "x"])
+    assert isinstance(r.exception, ModuleNotFoundError)
+
+
+def test_build_without_the_semantic_extra_stops_before_building(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import importlib.util  # noqa: PLC0415
+
+    real = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name, *a: None if name == "sentence_transformers" else real(name, *a),
+    )
+    r = CliRunner().invoke(cli, ["build", "--vault", str(vault)])
+    assert r.exit_code == 2
+    assert "missing sentence_transformers" in r.output and "--no-index" in r.output
+    assert not (vault / ".vaultkg" / "graph.sqlite").exists()

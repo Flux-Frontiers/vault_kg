@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are validated before use, and a snapshot key can't name a path outside the
   snapshots directory. A `lifespan` hook closes the graph when the server
   stops.
+- **Clear failures instead of wrong or silent results.** `build --no-index`
+  removes an existing vector index, which would otherwise describe the
+  previous graph and seed queries from notes that may be gone. `query` and
+  `pack` report a missing index, or a missing `semantic` extra, as a one-line
+  error naming the fix, and a full `build` without that extra stops before
+  writing anything rather than failing at the index step. `vaultkg-mcp` refuses to start on an unbuilt vault
+  rather than creating an empty graph and reporting zero notes.
 - **`VaultKG.node()` and `VaultKG.links()`**, shared by the CLI and the MCP
   server. Both accept a node id or a note's vault path (`wiki/X`,
   `wiki/X.md`, `note:wiki/X.md`).
