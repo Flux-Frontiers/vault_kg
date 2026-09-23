@@ -90,6 +90,14 @@ TWIG_COLOR: Final[str] = "#8A6A4A"
 
 GROUP_BY: Final[tuple[str, ...]] = ("auto", "folder", "tag")
 COLOR_BY: Final[tuple[str, ...]] = ("group", "tag", "links")
+SIZE_BY: Final[tuple[str, ...]] = ("links", "none")
+
+#: Leaf size by backlinks, as a multiple of ``leaf_size``: an unlinked note
+#: is 0.6x, one backlink 1.0x, and hubs grow with the square root of their
+#: count up to 2.5x, so one very linked note cannot swamp the canopy.
+LEAF_SCALE_BASE: Final[float] = 0.6
+LEAF_SCALE_STEP: Final[float] = 0.4
+LEAF_SCALE_MAX: Final[float] = 2.5
 
 
 def _size_scale(n_notes: int) -> float:
@@ -317,6 +325,24 @@ def leaf_colors(
     return np.asarray(codes, dtype=float), palette, legend
 
 
+def leaf_scales(kg: VaultKG, note_ids: list[str], *, size_by: str) -> np.ndarray:
+    """Per-leaf size multipliers.
+
+    :param kg: An open vault graph.
+    :param note_ids: Leaf order; matches the positions array.
+    :param size_by: ``"links"`` (backlink count) or ``"none"`` (all 1.0).
+    :return: ``(M,)`` multipliers of ``leaf_size``.
+    :raises ValueError: On an unknown ``size_by``.
+    """
+    if size_by not in SIZE_BY:
+        raise ValueError(f"size_by must be one of {', '.join(SIZE_BY)}, got {size_by!r}")
+    if size_by == "none":
+        return np.ones(len(note_ids))
+    back = vault_health(kg.store.con).in_links
+    counts = np.array([len(back.get(n, ())) for n in note_ids], dtype=float)
+    return np.minimum(LEAF_SCALE_BASE + LEAF_SCALE_STEP * np.sqrt(counts), LEAF_SCALE_MAX)
+
+
 def _line_mesh(segments: list[tuple[np.ndarray, np.ndarray]]) -> pv.PolyData:
     """One line mesh from ``(start, end)`` pairs: one draw call for all twigs."""
     import pyvista as pv  # noqa: PLC0415 -- the viz3d import boundary
@@ -343,6 +369,7 @@ def build_vault_tree_scene(
     *,
     group_by: str = "auto",
     color_by: str = "group",
+    size_by: str = "links",
     tip_radius: float = 0.06,
     leaf_size: float = 0.35,
     organic: bool = True,
@@ -354,6 +381,8 @@ def build_vault_tree_scene(
     :param group_by: ``"auto"``, ``"folder"`` or ``"tag"``; see
         :func:`vault_tree_positions`.
     :param color_by: ``"group"``, ``"tag"`` or ``"links"``; see :func:`leaf_colors`.
+    :param size_by: ``"links"`` sizes each leaf by its backlinks, ``"none"``
+        draws them all at ``leaf_size``; see :func:`leaf_scales`.
     :param tip_radius: Twig radius (organic) or trunk radius base (schematic).
     :param leaf_size: Leaf glyph radius before size scaling.
     :param organic: ``True`` grows wood by space colonization; ``False``
@@ -370,6 +399,7 @@ def build_vault_tree_scene(
     note_ids = list(positions.note_positions)
     leaf_points = np.array([positions.note_positions[n] for n in note_ids])
     codes, palette, legend = leaf_colors(kg, note_ids, positions, color_by=color_by)
+    scales = leaf_scales(kg, note_ids, size_by=size_by)
     cmap = ListedColormap(palette)
     clim = [-0.5, len(palette) - 0.5]
     tip_radius *= positions.size_scale
@@ -388,7 +418,11 @@ def build_vault_tree_scene(
         if wood.n_points:
             plotter.add_mesh(wood, color=WOOD_COLOR, smooth_shading=True, name="wood")
         leaves = leaf_glyphs(
-            leaf_points, skeleton, size=leaf_size, tint=codes, seed=seed_from_key(key + ":leaves")
+            leaf_points,
+            skeleton,
+            size=leaf_size * scales,
+            tint=codes,
+            seed=seed_from_key(key + ":leaves"),
         )
         if leaves.n_points:
             plotter.add_mesh(
@@ -420,9 +454,10 @@ def build_vault_tree_scene(
             plotter.add_mesh(tubes, color=TWIG_COLOR, smooth_shading=True, name="branches")
         cloud = pv.PolyData(leaf_points)
         cloud.point_data["tint"] = codes
+        cloud.point_data["leaf_scale"] = scales
         sphere = pv.Sphere(radius=leaf_size, theta_resolution=16, phi_resolution=16)
         plotter.add_mesh(
-            cloud.glyph(geom=sphere, orient=False, scale=False),
+            cloud.glyph(geom=sphere, orient=False, scale="leaf_scale", factor=1.0),
             scalars="tint",
             cmap=cmap,
             clim=clim,
@@ -452,5 +487,6 @@ __all__ = [
     "VaultTreePositions",
     "build_vault_tree_scene",
     "leaf_colors",
+    "leaf_scales",
     "vault_tree_positions",
 ]

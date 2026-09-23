@@ -21,7 +21,7 @@ vaultkg viz --vault ~/brain wiki/Retrieval --hops 2     # one note's neighbourho
 | Diamond | A tag |
 | Square | An attachment |
 | Grey triangle | A missing note: a link target no file answers to |
-| Edge colour | The relation: blue for links, purple for embeds, green `SUPPORTS`, red `CONTRADICTS`, orange for other typed links |
+| Edge colour | The relation: blue for links, purple for embeds, green `SUPPORTS`, red `CONTRADICTS`, orange for other typed links. Hover an edge for its name; `--edge-labels` prints every relation on the canvas |
 
 - With a root, the page shows everything within `--hops` links of it, in
   either direction, nearest first. Without one, it shows the `--max-nodes`
@@ -45,7 +45,7 @@ draw.
 - Every note is a leaf, clustered at the tip of the folder that holds it.
 - Notes at the vault root ring the base of the trunk.
 
-A bigger folder grows a longer limb. The wood is grown toward the leaves by
+A bigger folder grows a longer limb, and a more linked note grows a bigger leaf. The wood is grown toward the leaves by
 space colonization, seeded from the vault's name, so the same vault always
 grows the same tree.
 
@@ -61,6 +61,7 @@ vaultkg quilt --vault ~/brain --color-by links --cast
 |---|---|
 | `--group-by` | `auto` (default): folders, or nested tags for a vault with no folders. `folder`. `tag`: limbs from nested tags (`#ml/retrieval` is limb `ml`, branch `retrieval`), untagged notes at the base |
 | `--color-by` | `group` (default): top-level folder or tag. `tag`: first tag. `links`: backlink count, pale for none to dark for a hub |
+| `--size-by` | `links` (default): a note's leaf grows with its backlinks, from 0.6x the base size for an unlinked note to at most 2.5x for a hub. `none`: every leaf one size |
 | `--schematic` | Draw the layout with straight lines instead of growing wood. Fast at any size, and shows the layout the organic tree grows toward |
 
 Colours come from the Okabe-Ito palette, which stays distinguishable under

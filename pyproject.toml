@@ -69,11 +69,11 @@ classifiers = [
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "click>=8.1.0,<9",
-    # 0.23.0: KGModule.query()/pack() validate their arguments (k, hop,
-    # max_nodes, query length), so neither the CLI nor the MCP server repeats
-    # the check; and KGModule.__enter__ returns Self, so `with VaultKG(...)`
-    # keeps the subclass type under ty.
-    "kgmodule-utils>=0.23.0",
+    # 0.24.0: KGModule.drop_index() (a stale index is dropped through the SDK,
+    # not by deleting files here), build_graph_html(edge_labels=) and per-leaf
+    # sizes in leaf_glyphs(). 0.23.0 added the query()/pack() argument checks
+    # the CLI and MCP server rely on.
+    "kgmodule-utils>=0.24.0",
     # Capped: mcp 2.0 removed the bundled `mcp.server.fastmcp` module (it
     # became the standalone fastmcp package). mcp_server.py imports FastMCP
     # from mcp at module scope, so an unbounded floor would let a clean install
@@ -88,11 +88,11 @@ dependencies = [
 # The embedding model and the sqlite-vec index, for `vaultkg query` / `pack`
 # and the query_vault / pack_vault MCP tools. Without it everything else
 # works; build with --no-index.
-semantic = ["kgmodule-utils[semantic]>=0.23.0"]
+semantic = ["kgmodule-utils[semantic]>=0.24.0"]
 # 2-D link graph (vaultkg viz): src/vaultkg/viz.py, imported only inside the
 # command. pyvis is not hand-listed: the renderer is kg_utils.viz.build_graph_html,
 # so this extra asks the SDK for it by name, as FLEET_STANDARDS.md requires.
-viz = ["kgmodule-utils[viz]>=0.23.0"]
+viz = ["kgmodule-utils[viz]>=0.24.0"]
 # 3-D folder tree and Looking Glass quilts (vaultkg quilt / vaultkg viz3d):
 # src/vaultkg/scene.py and viz3d.py. The render stack comes through
 # kgmodule-utils[viz3d-render,viz3d-qt] rather than hand-listed pyvista/PyQt5.
@@ -100,7 +100,7 @@ viz = ["kgmodule-utils[viz]>=0.23.0"]
 # pyvistaqt, which the viewer's QtInteractor needs (connectome_kg and
 # genealogy_kg carry the same line for the same reason).
 viz3d = [
-    "kgmodule-utils[viz3d-render,viz3d-qt]>=0.23.0",
+    "kgmodule-utils[viz3d-render,viz3d-qt]>=0.24.0",
     "pyvistaqt>=0.11.0",
     "quiltwright>=0.15.0",
 ]

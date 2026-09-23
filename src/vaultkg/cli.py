@@ -91,19 +91,10 @@ def build(vault: str, exclude: tuple[str, ...], no_index: bool, wipe: bool) -> N
         )
     with VaultKG(vault, exclude=exclude) as kg:
         if no_index:
-            # The SDK's build_graph() leaves any existing index alone. After a
-            # graph-only rebuild that index describes the previous graph, so
-            # query would seed from notes that may be gone; remove it instead.
-            stale = [
-                p
-                for p in (
-                    kg.vectors_path,
-                    *kg.vectors_path.parent.glob(kg.vectors_path.name + "-*"),
-                )
-                if p.exists()
-            ]
-            for p in stale:
-                p.unlink()
+            # An index from an earlier build no longer matches the graph. The
+            # SDK drops it on a wiped rebuild; dropping it here covers
+            # --no-wipe as well, and reports what went.
+            stale = kg.drop_index()
             stats = kg.build_graph(wipe=wipe)
         else:
             stale = []
@@ -210,6 +201,13 @@ color_by_option = click.option(
 preset_option = click.option(
     "--preset", default="16-landscape", show_default=True, help="Looking Glass quilt preset."
 )
+size_by_option = click.option(
+    "--size-by",
+    type=click.Choice(["links", "none"]),
+    default="links",
+    show_default=True,
+    help="Size leaves by backlink count, or draw them all one size.",
+)
 schematic_option = click.option(
     "--schematic",
     is_flag=True,
@@ -241,8 +239,17 @@ schematic_option = click.option(
     help="Node budget; beyond a few hundred the graph stops being readable.",
 )
 @click.option("--headings", is_flag=True, help="Draw headings as well as notes.")
+@click.option(
+    "--edge-labels", is_flag=True, help="Print each link's relation (default: on hover only)."
+)
 def viz(
-    vault: str, root: str | None, output: Path | None, hops: int, max_nodes: int, headings: bool
+    vault: str,
+    root: str | None,
+    output: Path | None,
+    hops: int,
+    max_nodes: int,
+    headings: bool,
+    edge_labels: bool,
 ) -> None:
     """Write the link graph as a self-contained interactive HTML page.
 
@@ -258,7 +265,12 @@ def viz(
     with _open(vault) as kg:
         try:
             html, n_nodes, n_edges = render.link_graph_html(
-                kg, root=root, hops=hops, max_nodes=max_nodes, kinds=kinds
+                kg,
+                root=root,
+                hops=hops,
+                max_nodes=max_nodes,
+                kinds=kinds,
+                edge_labels=edge_labels,
             )
         except ValueError as exc:
             raise click.UsageError(str(exc)) from exc
@@ -281,6 +293,7 @@ def viz(
 )
 @group_by_option
 @color_by_option
+@size_by_option
 @click.option(
     "--tip-radius", default=0.06, show_default=True, type=float, help="Twig radius, world units."
 )
@@ -307,6 +320,7 @@ def quilt(
     out_dir: Path,
     group_by: str,
     color_by: str,
+    size_by: str,
     tip_radius: float,
     leaf_size: float,
     zoom: float,
@@ -349,6 +363,7 @@ def quilt(
                 plotter,
                 group_by=group_by,
                 color_by=color_by,
+                size_by=size_by,
                 tip_radius=tip_radius,
                 leaf_size=leaf_size,
                 organic=not schematic,
@@ -393,6 +408,7 @@ def quilt(
 @vault_option
 @group_by_option
 @color_by_option
+@size_by_option
 @preset_option
 @click.option("--width", default=1400, show_default=True, type=int, help="Window width, pixels.")
 @click.option("--height", default=900, show_default=True, type=int, help="Window height, pixels.")
@@ -401,6 +417,7 @@ def viz3d(
     vault: str,
     group_by: str,
     color_by: str,
+    size_by: str,
     preset: str,
     width: int,
     height: int,
@@ -422,6 +439,7 @@ def viz3d(
             root,
             group_by=group_by,
             color_by=color_by,
+            size_by=size_by,
             preset=preset,
             organic=not schematic,
             width=width,

@@ -142,3 +142,29 @@ def test_cli_viz_without_the_extra_says_how_to_install(
     )
     r = CliRunner().invoke(cli, ["viz", "--vault", vault])
     assert r.exit_code == 2 and 'pip install "vault-kg[viz]"' in r.output
+
+
+def _edge_payload(html: str) -> list[dict]:
+    import json  # noqa: PLC0415
+    import re  # noqa: PLC0415
+
+    payload = re.search(r"edges\s*=\s*new vis\.DataSet\((\[.*?\])\);", html, re.S)
+    assert payload
+    return json.loads(payload.group(1))
+
+
+def test_edge_labels_are_off_by_default_and_on_by_request(graph: VaultKG) -> None:
+    quiet = _edge_payload(viz.link_graph_html(graph, root=RETRIEVAL)[0])
+    loud = _edge_payload(viz.link_graph_html(graph, root=RETRIEVAL, edge_labels=True)[0])
+    assert quiet and all("label" not in e for e in quiet)
+    assert all(e["title"] for e in quiet)  # the relation is still on hover
+    assert all(e.get("label") == e["title"] for e in loud)
+
+
+def test_cli_edge_labels_flag(graph: VaultKG, tmp_path: Path) -> None:
+    vault = str(graph.repo_root)
+    graph.close()
+    out = tmp_path / "l.html"
+    r = CliRunner().invoke(cli, ["viz", "--vault", vault, "--edge-labels", "-o", str(out)])
+    assert r.exit_code == 0, r.output
+    assert all(e.get("label") for e in _edge_payload(out.read_text()))

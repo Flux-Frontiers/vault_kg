@@ -159,9 +159,9 @@ Every command takes `--vault DIR` (default: the current directory) and `--help`.
 | `vaultkg snapshot save [KEY]` | Record the current metrics (key defaults to a UTC timestamp) | `--force` to save when nothing changed |
 | `vaultkg snapshot list` | List snapshots, newest first | |
 | `vaultkg snapshot diff A B` | Compare two snapshots | |
-| `vaultkg viz [ROOT]` | Write the link graph as an interactive HTML page | `-o FILE` (default `<vault name>_links.html`), `--hops` (0-5, default 1), `--max-nodes` (2-5000, default 200), `--headings` |
-| `vaultkg quilt` | Grow the vault as a 3-D tree and render a Looking Glass quilt | `--preset` (default `16-landscape`), `-o DIR` (default `renders`), `--group-by`, `--color-by`, `--tip-radius`, `--leaf-size`, `--zoom`, `--fov`, `--cast`, `--schematic` |
-| `vaultkg viz3d` | Open the 3-D tree in an interactive viewer | `--group-by`, `--color-by`, `--preset`, `--width`, `--height`, `--schematic` |
+| `vaultkg viz [ROOT]` | Write the link graph as an interactive HTML page | `-o FILE` (default `<vault name>_links.html`), `--hops` (0-5, default 1), `--max-nodes` (2-5000, default 200), `--headings`, `--edge-labels` |
+| `vaultkg quilt` | Grow the vault as a 3-D tree and render a Looking Glass quilt | `--preset` (default `16-landscape`), `-o DIR` (default `renders`), `--group-by`, `--color-by`, `--size-by`, `--tip-radius`, `--leaf-size`, `--zoom`, `--fov`, `--cast`, `--schematic` |
+| `vaultkg viz3d` | Open the 3-D tree in an interactive viewer | `--group-by`, `--color-by`, `--size-by`, `--preset`, `--width`, `--height`, `--schematic` |
 | `vaultkg --version` | Print the installed version | |
 
 `query` and `pack` need the `semantic` extra and a build without `--no-index`.
@@ -243,6 +243,8 @@ vaultkg viz --vault ~/brain wiki/Retrieval --hops 2  # one note's neighbourhood
   most connected `--max-nodes` nodes.
 - Headings are left out unless you pass `--headings`; a vault has several per
   note, and they hide the links between notes.
+- An edge's relation shows on hover and in its colour; `--edge-labels` prints
+  them all on the canvas.
 - Drag to pan, scroll to zoom, and click a node for its details.
 
 ### The vault as a tree
@@ -263,6 +265,7 @@ vaultkg viz3d --vault ~/brain                     # interactive; orbit, zoom, pa
 |---|---|
 | `--group-by` | `auto` (default): folders, or nested tags for a vault with no folders. `folder`. `tag`: limbs from nested tags (`#ml/retrieval`), untagged notes at the base. |
 | `--color-by` | `group` (default): top-level folder or tag. `tag`: first tag. `links`: backlink count, pale to dark. |
+| `--size-by` | `links` (default): a leaf grows with its note's backlinks, so hubs stand out. `none`: every leaf one size. |
 | `--schematic` | Draw the layout with straight lines instead of growing wood. Fast at any size. |
 
 `quilt` prints the colour legend and the depth budget for the chosen preset,

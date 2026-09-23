@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Leaf size follows backlinks** in `vaultkg quilt` and `vaultkg viz3d`
+  (`--size-by links`, the default): an unlinked note's leaf is 0.6x the base
+  size, one backlink 1.0x, and hubs grow with the square root of their count
+  to at most 2.5x. `--size-by none` draws every leaf one size. Both the
+  organic and the schematic render honour it.
+- **`vaultkg viz --edge-labels`.** Edge relations are now on hover and in the
+  edge colour by default, not printed across the canvas, which kept a note's
+  neighbourhood unreadable when nearly every edge is `LINKS_TO`.
+
+### Changed
+
+- **`kgmodule-utils` floor raised to `>=0.24.0`** in the core dependency and
+  all three extras, for `KGModule.drop_index()`,
+  `build_graph_html(edge_labels=)` and per-leaf sizes in `leaf_glyphs()`.
+  `build --no-index` now drops a stale index through the SDK rather than
+  deleting the files itself; the behaviour is unchanged.
+
 ## [0.1.0] - 2026-09-22
 
 The first release.
