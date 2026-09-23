@@ -130,6 +130,7 @@ of the vault. Needs the `viz` extra. See [The link graph](visualization.md#the-l
 | `--hops INTEGER` | Links to expand from ROOT, 0-5. Default 1 |
 | `--max-nodes INTEGER` | Node budget, 2-5000. Default 200 |
 | `--headings` | Draw headings as well as notes |
+| `--edge-labels` | Print each link's relation on the canvas. Default: on hover only |
 
 ### `vaultkg quilt`
 
@@ -142,6 +143,7 @@ Grow the vault as a 3-D tree and render it as a Looking Glass quilt. Needs the
 | `-o, --out DIRECTORY` | Output directory. Default `renders` |
 | `--group-by [auto\|folder\|tag]` | Limbs from folders, or from nested tags. Default `auto`: tags only for a vault with no folders |
 | `--color-by [group\|tag\|links]` | Leaf colour by top-level group, first tag, or backlink count. Default `group` |
+| `--size-by [links\|none]` | Leaf size by backlink count, or all one size. Default `links` |
 | `--tip-radius FLOAT` | Twig radius, in world units. Default 0.06 |
 | `--leaf-size FLOAT` | Leaf radius. Default 0.35 |
 | `--zoom FLOAT` | Camera dolly after framing; above 1 fills more of the tile. Default 1.0 |
@@ -159,7 +161,7 @@ button. Needs the `viz3d` extra.
 
 | Option | Meaning |
 |---|---|
-| `--group-by`, `--color-by`, `--preset`, `--schematic` | As for `quilt` |
+| `--group-by`, `--color-by`, `--size-by`, `--preset`, `--schematic` | As for `quilt` |
 | `--width INTEGER` | Window width in pixels. Default 1400 |
 | `--height INTEGER` | Window height in pixels. Default 900 |
 

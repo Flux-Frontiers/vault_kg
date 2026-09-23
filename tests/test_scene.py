@@ -104,6 +104,19 @@ def test_leaf_colors_index_their_palette(graph: VaultKG, color_by: str) -> None:
         scene.leaf_colors(graph, ids, pos, color_by="mood")
 
 
+def test_leaf_scales_follow_backlinks(graph: VaultKG) -> None:
+    ids = [RETRIEVAL, "note:Orphan.md", "note:wiki/concepts/Search.md"]
+    scales = scene.leaf_scales(graph, ids, size_by="links")
+    backlinks = graph.health().in_links
+    assert len(backlinks[RETRIEVAL]) > len(backlinks["note:wiki/concepts/Search.md"])
+    assert scales[0] > scales[2] > scales[1]  # hub > linked > orphan
+    assert scales[1] == pytest.approx(scene.LEAF_SCALE_BASE)
+    assert scales.max() <= scene.LEAF_SCALE_MAX
+    assert (scene.leaf_scales(graph, ids, size_by="none") == 1.0).all()
+    with pytest.raises(ValueError, match="size_by"):
+        scene.leaf_scales(graph, ids, size_by="mass")
+
+
 # ---------------------------------------------------------------- composition
 
 pv = pytest.importorskip("pyvista")
@@ -142,6 +155,22 @@ def test_cli_quilt_renders_and_names_the_file(
     assert cast == [written[0].resolve()]
 
 
+@pytest.mark.parametrize("organic", [True, False])
+def test_leaf_size_follows_backlinks_in_the_scene(graph: VaultKG, organic: bool) -> None:
+    """A hub's leaf is drawn bigger than an orphan's, in both render modes."""
+    sizes = {}
+    for size_by in ("links", "none"):
+        plotter = pv.Plotter(off_screen=True)
+        try:
+            scene.build_vault_tree_scene(graph, plotter, size_by=size_by, organic=organic)
+            leaves = plotter.actors["leaves"].mapper.dataset
+            sizes[size_by] = float(np.ptp(leaves.points, axis=0).max())
+        finally:
+            plotter.close()
+    # Sized leaves change the extent of the foliage; uniform ones do not match it.
+    assert not np.isclose(sizes["links"], sizes["none"])
+
+
 def test_cli_quilt_reports_a_failed_cast_without_failing(
     graph: VaultKG, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -156,7 +185,7 @@ def test_cli_quilt_reports_a_failed_cast_without_failing(
     r = CliRunner().invoke(
         cli,
         ["quilt", "--vault", vault, "--preset", "portrait", "-o", str(tmp_path)]
-        + ["--schematic", "--cast"],
+        + ["--schematic", "--cast", "--size-by", "none"],
     )
     assert r.exit_code == 0, r.output
     assert "Cast failed" in r.output
@@ -242,6 +271,7 @@ def test_cli_viz3d_launches_the_viewer(graph: VaultKG, monkeypatch: pytest.Monke
     r = CliRunner().invoke(cli, ["viz3d", "--vault", str(vault), "--schematic"])
     assert r.exit_code == 0, r.output
     assert seen["root"] == vault.resolve() and seen["organic"] is False
+    assert seen["size_by"] == "links"
 
 
 def test_launch_opens_a_sized_window(qapp, graph: VaultKG, monkeypatch: pytest.MonkeyPatch) -> None:

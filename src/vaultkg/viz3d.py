@@ -29,6 +29,7 @@ class VaultTreeWindow(QMainWindow):
     :param kg: An open vault graph.
     :param group_by: ``"auto"``, ``"folder"`` or ``"tag"``.
     :param color_by: ``"group"``, ``"tag"`` or ``"links"``.
+    :param size_by: ``"links"`` or ``"none"``.
     :param preset: Quilt preset name for the Cast action.
     :param organic: ``True`` grows wood; ``False`` draws the schematic.
     """
@@ -39,6 +40,7 @@ class VaultTreeWindow(QMainWindow):
         *,
         group_by: str = "auto",
         color_by: str = "group",
+        size_by: str = "links",
         preset: str = DEFAULT_QUILT_PRESET,
         organic: bool = True,
     ) -> None:
@@ -48,7 +50,12 @@ class VaultTreeWindow(QMainWindow):
 
         def build(plotter) -> render3d.VaultTree:
             return render3d.build_vault_tree_scene(
-                kg, plotter, group_by=group_by, color_by=color_by, organic=organic
+                kg,
+                plotter,
+                group_by=group_by,
+                color_by=color_by,
+                size_by=size_by,
+                organic=organic,
             )
 
         self._build = build
@@ -88,6 +95,7 @@ def launch(
     *,
     group_by: str = "auto",
     color_by: str = "group",
+    size_by: str = "links",
     preset: str = DEFAULT_QUILT_PRESET,
     organic: bool = True,
     width: int = 1400,
@@ -98,6 +106,7 @@ def launch(
     :param vault: Vault root; the graph lives in ``<vault>/.vaultkg/``.
     :param group_by: ``"auto"``, ``"folder"`` or ``"tag"``.
     :param color_by: ``"group"``, ``"tag"`` or ``"links"``.
+    :param size_by: ``"links"`` or ``"none"``.
     :param preset: Quilt preset name for the Cast action.
     :param organic: ``True`` grows wood; ``False`` draws the schematic.
     :param width: Window width in pixels.
@@ -109,7 +118,12 @@ def launch(
     with VaultKG(vault) as kg:
         app = QApplication.instance() or QApplication([])
         window = VaultTreeWindow(
-            kg, group_by=group_by, color_by=color_by, preset=preset, organic=organic
+            kg,
+            group_by=group_by,
+            color_by=color_by,
+            size_by=size_by,
+            preset=preset,
+            organic=organic,
         )
         window.resize(width, height)
         window.show()

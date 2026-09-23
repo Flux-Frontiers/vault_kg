@@ -139,6 +139,7 @@ def link_graph_html(
     max_nodes: int = 200,
     kinds: tuple[str, ...] = DEFAULT_KINDS,
     height: str = "800px",
+    edge_labels: bool = False,
 ) -> tuple[str, int, int]:
     """Render the vault's link graph as a self-contained HTML page.
 
@@ -152,6 +153,9 @@ def link_graph_html(
     :param max_nodes: Node budget.
     :param kinds: Node kinds to draw; the root is drawn whatever its kind.
     :param height: CSS height of the canvas.
+    :param edge_labels: Print each link's relation on the canvas. Off by
+        default: in a note's neighbourhood nearly every edge is ``LINKS_TO``,
+        and the relation is still on hover and in the edge colour.
     :return: ``(html, nodes drawn, edges drawn)``.
     :raises ValueError: If ``root`` is not in the graph, a kind is unknown, or
         nothing is left to draw.
@@ -193,6 +197,7 @@ def link_graph_html(
         scores=backlink_scores(kg),
         height=height,
         highlight_ids={root_id} if root_id else None,
+        edge_labels=edge_labels,
     )
     return html, len(nodes), len(edges)
 
