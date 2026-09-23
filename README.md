@@ -4,6 +4,7 @@
 [![CI](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml/badge.svg)](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml)
 [![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
 [![Docs](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/docs.yml/badge.svg)](https://flux-frontiers.github.io/vault_kg/)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22907544-blue.svg)](https://doi.org/10.5281/zenodo.22907544)
 
 # VaultKG -- Obsidian Vaults as Knowledge Graphs
 
@@ -359,7 +360,7 @@ or managed service to third parties. Commercial internal use is permitted.
 
 If you use VaultKG in your research or project, please cite it:
 
-> Suchanek, E. G. (2026). *VaultKG: Obsidian Vaults as Knowledge Graphs* (Version 0.1.0) [Software]. Flux-Frontiers. https://github.com/Flux-Frontiers/vault_kg
+> Suchanek, E. G. (2026). *VaultKG: Obsidian Vaults as Knowledge Graphs* (Version 0.1.0) [Software]. Flux-Frontiers. https://doi.org/10.5281/zenodo.22907544
 
 ```bibtex
 @software{suchanek_vaultkg,
@@ -369,6 +370,7 @@ If you use VaultKG in your research or project, please cite it:
   year      = {2026},
   publisher = {Flux-Frontiers},
   url       = {https://github.com/Flux-Frontiers/vault_kg},
+  doi       = {10.5281/zenodo.22907544},
 }
 ```
 
