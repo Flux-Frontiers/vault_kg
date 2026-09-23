@@ -17,6 +17,10 @@ uv.lock
 # built under this repo is a test or demo run and is never tracked.
 .vaultkg/
 
+# Render output: quilts from `vaultkg quilt`, pages from `vaultkg viz`.
+renders/
+*_links.html
+
 # === KG generated artifacts (normalized across the fleet) ===
 # Databases, vector indexes and model caches are transient and
 # reproducible. snapshots/ is TRACKED and must never be ignored --

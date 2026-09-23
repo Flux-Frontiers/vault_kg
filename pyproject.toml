@@ -14,6 +14,8 @@
 # -------------------
 #   pip install -e "."                  graph build + analyze + MCP (no embedding stack)
 #   pip install -e ".[semantic]"        + embedding model, for query / pack
+#   pip install -e ".[viz]"             + 2-D link graph (vaultkg viz)
+#   pip install -e ".[viz3d]"           + 3-D folder tree, quilts, viewer
 #
 # Quick install (poetry)
 # ----------------------
@@ -86,6 +88,21 @@ dependencies = [
 # and the query_vault / pack_vault MCP tools. Without it everything else
 # works; build with --no-index.
 semantic = ["kgmodule-utils[semantic]>=0.23.0"]
+# 2-D link graph (vaultkg viz): src/vaultkg/viz.py, imported only inside the
+# command. pyvis is not hand-listed: the renderer is kg_utils.viz.build_graph_html,
+# so this extra asks the SDK for it by name, as FLEET_STANDARDS.md requires.
+viz = ["kgmodule-utils[viz]>=0.23.0"]
+# 3-D folder tree and Looking Glass quilts (vaultkg quilt / vaultkg viz3d):
+# src/vaultkg/scene.py and viz3d.py. The render stack comes through
+# kgmodule-utils[viz3d-render,viz3d-qt] rather than hand-listed pyvista/PyQt5.
+# pyvistaqt IS hand-listed: viz3d-qt pulls PyQt5 and pyvista but not
+# pyvistaqt, which the viewer's QtInteractor needs (connectome_kg and
+# genealogy_kg carry the same line for the same reason).
+viz3d = [
+    "kgmodule-utils[viz3d-render,viz3d-qt]>=0.23.0",
+    "pyvistaqt>=0.11.0",
+    "quiltwright>=0.15.0",
+]
 
 [project.urls]
 Homepage   = "https://github.com/Flux-Frontiers/vault_kg"

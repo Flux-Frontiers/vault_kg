@@ -66,11 +66,13 @@ jobs:
           path: .venv
           key: typecheck-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
 
-      # No semantic extra: nothing under src/ imports the embedding stack
-      # directly (kgmodule-utils does, lazily), so ty resolves every import
-      # vaultkg makes without pulling torch onto the runner.
+      # The viz and viz3d extras, so ty checks the render code against the
+      # same pyvista, PyQt5 and quiltwright types a developer's environment
+      # has; without them those imports are unresolved and the suppressions
+      # the render code needs are reported as unused. No semantic extra:
+      # nothing under src/ imports the embedding stack directly.
       - name: Install dependencies
-        run: poetry install --no-interaction --with dev
+        run: poetry install --no-interaction --with dev --extras "viz viz3d"
 
       - name: Run ty
         run: poetry run ty check src/
@@ -101,17 +103,48 @@ jobs:
           path: .venv
           key: test-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
 
-      # No semantic extra: the suite embeds with a hashing stub (tests/conftest.py)
-      # into a real sqlite-vec index, which the dev group installs, so the query
-      # and pack paths run without a model download.
+      # VTK needs an OpenGL context: this starts Xvfb with Mesa and exports
+      # DISPLAY (and PYVISTA_OFF_SCREEN) for the steps that follow.
+      - name: Set up a headless display
+        uses: pyvista/setup-headless-display-action@v4
+
+      # Libraries PyQt5's QtWidgets links against, for the viewer tests.
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libegl1 libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libdbus-1-3
+
+      # The viz and viz3d extras, so the render tests run rather than skip.
+      # No semantic extra: the suite embeds with a hashing stub
+      # (tests/conftest.py) into a real sqlite-vec index, which the dev group
+      # installs, so query and pack run without a model download. A core-only
+      # install is proven by the Installed CLI job below.
       - name: Install dependencies
-        run: poetry install --no-interaction --with dev
+        run: poetry install --no-interaction --with dev --extras "viz viz3d"
+
+      # importorskip turns a missing package into a skip; here that would be
+      # a silent pass, so check every package the gated tests need first.
+      - name: Check the extras import
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          poetry run python -c "import pyvis, pyvista, pyvistaqt, PyQt5.QtWidgets, quiltwright; print('viz and viz3d extras import')"
 
       # --cov activates the fail_under gate in [tool.coverage.report]; it is
-      # not repeated here, so there is one number to keep in sync. -rs prints
-      # the reason for any skip, so a skipped test is visible rather than green.
+      # not repeated here, so there is one number to keep in sync. Any skip
+      # fails the job: with the extras installed, a skip means a test that
+      # did not run.
       - name: Run tests
-        run: poetry run pytest -rs --cov --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -o pipefail  # the default bash -e would let tee hide a pytest failure
+          poetry run pytest -rs --cov --cov-report=term-missing | tee /tmp/tests.out
+          if grep -q "SKIPPED" /tmp/tests.out; then
+            echo "a test skipped although the extras are installed"; exit 1
+          fi
 
   wheel:
     name: Installed CLI
@@ -189,6 +222,12 @@ jobs:
           /tmp/smoke/bin/vaultkg links --vault /tmp/vault --in Home | tee /tmp/links.out
           grep -q "SUPPORTS" /tmp/links.out || { echo "typed backlink missing"; exit 1; }
           /tmp/smoke/bin/vaultkg analyze --vault /tmp/vault | head -3
+          # The render commands must say which extra to install, not crash.
+          for cmd in viz quilt viz3d; do
+            /tmp/smoke/bin/vaultkg $cmd --vault /tmp/vault 2>&1 | tee /tmp/$cmd.out || true
+            grep -q 'pip install "vault-kg\[' /tmp/$cmd.out \
+              || { echo "$cmd did not name its extra"; exit 1; }
+          done
           echo "end-to-end build + stats + links OK"
 
       - name: Import every packaged submodule
@@ -205,10 +244,20 @@ jobs:
           if not names:
               sys.exit("vaultkg has no submodules -- the wheel is missing its package body")
 
+          # Modules that import their extra at module scope, and the extra.
+          # Everything else must import core-only.
+          extra_only = {"vaultkg.scene": "viz3d", "vaultkg.viz3d": "viz3d"}
+
           failed = []
           for name in sorted(names):
               try:
                   importlib.import_module(name)
+              except ModuleNotFoundError as exc:
+                  if name in extra_only and not (exc.name or "").startswith("vaultkg"):
+                      print(f"  skip  {name} (needs the {extra_only[name]} extra: {exc.name})")
+                      continue
+                  failed.append(name)
+                  print(f"  FAIL  {name}\n        {type(exc).__name__}: {exc}")
               except Exception as exc:
                   failed.append(name)
                   print(f"  FAIL  {name}\n        {type(exc).__name__}: {exc}")

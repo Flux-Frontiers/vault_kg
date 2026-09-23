@@ -186,6 +186,247 @@ def links(vault: str, node_id: str, backlinks: bool, rel: str, limit: int) -> No
         click.echo(f"{r['rel']:<12} {'<-' if backlinks else '->'} {r['node']}")
 
 
+_VIZ_EXTRA = 'pip install "vault-kg[viz]"'
+_VIZ3D_EXTRA = 'pip install "vault-kg[viz3d]"'
+
+group_by_option = click.option(
+    "--group-by",
+    type=click.Choice(["auto", "folder", "tag"]),
+    default="auto",
+    show_default=True,
+    help="Limbs from folders, or from nested tags. auto uses tags only for a flat vault.",
+)
+color_by_option = click.option(
+    "--color-by",
+    type=click.Choice(["group", "tag", "links"]),
+    default="group",
+    show_default=True,
+    help="Colour leaves by top-level group, by first tag, or by backlink count.",
+)
+preset_option = click.option(
+    "--preset", default="16-landscape", show_default=True, help="Looking Glass quilt preset."
+)
+schematic_option = click.option(
+    "--schematic",
+    is_flag=True,
+    help="Draw the straight-line layout instead of growing organic wood (fast at any size).",
+)
+
+
+@cli.command()
+@vault_option
+@click.argument("root", required=False)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="HTML file to write.  [default: <vault name>_links.html]",
+)
+@click.option(
+    "--hops",
+    default=1,
+    show_default=True,
+    type=click.IntRange(0, MAX_HOP),
+    help="Links to expand from ROOT.",
+)
+@click.option(
+    "--max-nodes",
+    default=200,
+    show_default=True,
+    type=click.IntRange(2, 5000),
+    help="Node budget; beyond a few hundred the graph stops being readable.",
+)
+@click.option("--headings", is_flag=True, help="Draw headings as well as notes.")
+def viz(
+    vault: str, root: str | None, output: Path | None, hops: int, max_nodes: int, headings: bool
+) -> None:
+    """Write the link graph as a self-contained interactive HTML page.
+
+    With ROOT (a node id or a note's vault path), draw that note's
+    neighbourhood; without it, the most connected part of the vault. Notes
+    are sized by backlinks.
+    """
+    if importlib.util.find_spec("pyvis") is None:
+        raise click.UsageError(f"viz needs pyvis. Install with:  {_VIZ_EXTRA}")
+    from vaultkg import viz as render  # noqa: PLC0415 -- viz-extra import boundary
+
+    kinds = render.ALL_KINDS if headings else render.DEFAULT_KINDS
+    with _open(vault) as kg:
+        try:
+            html, n_nodes, n_edges = render.link_graph_html(
+                kg, root=root, hops=hops, max_nodes=max_nodes, kinds=kinds
+            )
+        except ValueError as exc:
+            raise click.UsageError(str(exc)) from exc
+        path = output or Path(f"{kg.repo_root.name}_links.html")
+    path.write_text(html, encoding="utf-8")
+    click.echo(f"Wrote {path} -- {n_nodes} nodes, {n_edges} edges.")
+
+
+@cli.command()
+@vault_option
+@preset_option
+@click.option(
+    "-o",
+    "--out",
+    "out_dir",
+    default="renders",
+    show_default=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Output directory for the quilt.",
+)
+@group_by_option
+@color_by_option
+@click.option(
+    "--tip-radius", default=0.06, show_default=True, type=float, help="Twig radius, world units."
+)
+@click.option("--leaf-size", default=0.35, show_default=True, type=float, help="Leaf radius.")
+@click.option(
+    "--zoom",
+    default=1.0,
+    show_default=True,
+    type=float,
+    help="Camera dolly after framing. >1 fills more of the tile, driving more depth.",
+)
+@click.option(
+    "--fov",
+    default=14.0,
+    show_default=True,
+    type=float,
+    help="Per-view vertical field of view in degrees; Looking Glass recommends ~14.",
+)
+@click.option("--cast", is_flag=True, help="Send the finished quilt to Looking Glass Bridge.")
+@schematic_option
+def quilt(
+    vault: str,
+    preset: str,
+    out_dir: Path,
+    group_by: str,
+    color_by: str,
+    tip_radius: float,
+    leaf_size: float,
+    zoom: float,
+    fov: float,
+    cast: bool,
+    schematic: bool,
+) -> None:
+    """Grow the vault as a 3-D tree and render it as a Looking Glass quilt.
+
+    The vault is the trunk, folders are limbs, notes are leaves.
+    """
+    try:
+        import pyvista as pv  # noqa: PLC0415 -- viz3d-extra import boundary
+        from quiltwright import (  # noqa: PLC0415
+            QUILT_PRESETS,
+            depth_report,
+            render_quilt,
+            save_quilt,
+        )
+    except ImportError as exc:
+        raise click.UsageError(
+            f"quilt needs pyvista and quiltwright. Install with:  {_VIZ3D_EXTRA}"
+        ) from exc
+    from kg_utils.viz3d import frame_tree  # noqa: PLC0415
+
+    from vaultkg import scene as render3d  # noqa: PLC0415
+
+    if preset not in QUILT_PRESETS:
+        raise click.UsageError(
+            f"unknown quilt preset {preset!r}. Choose from: {', '.join(QUILT_PRESETS)}"
+        )
+    spec = QUILT_PRESETS[preset]
+
+    plotter = pv.Plotter(off_screen=True)
+    with _open(vault) as kg:
+        name = kg.repo_root.name
+        try:
+            tree = render3d.build_vault_tree_scene(
+                kg,
+                plotter,
+                group_by=group_by,
+                color_by=color_by,
+                tip_radius=tip_radius,
+                leaf_size=leaf_size,
+                organic=not schematic,
+            )
+        except ValueError as exc:
+            raise click.UsageError(str(exc)) from exc
+    click.echo(f"Scene: {tree.title}")
+    click.echo("Legend: " + ", ".join(f"{k} {c}" for k, c in tree.legend.items()))
+
+    frame = frame_tree(tree.points, fov=fov)
+    plotter.camera.position = frame.position
+    plotter.camera.focal_point = frame.focal_point
+    plotter.camera.up = frame.up
+    plotter.reset_camera()  # ty: ignore[missing-argument]
+    click.echo(
+        depth_report(
+            plotter,
+            spec,
+            fov=fov,
+            zoom=zoom,
+            labels=("nearest foliage", "focal plane (display surface)", "farthest foliage"),
+        )
+    )
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    click.echo(f"Rendering {spec.n_views} views at {spec.tile_width}x{spec.tile_height}...")
+    path = save_quilt(render_quilt(plotter, spec, fov=fov, zoom=zoom), out_dir / name, spec)
+    plotter.close()
+    click.echo(f"Wrote {path}")
+
+    if cast:
+        from quiltwright import cast_quilt  # noqa: PLC0415
+
+        try:
+            cast_quilt(path.resolve(), spec)
+            click.echo("Cast to Looking Glass Bridge.")
+        except Exception as exc:  # noqa: BLE001 -- no Bridge must not fail the render
+            click.echo(f"Cast failed (is Looking Glass Bridge running?): {exc}", err=True)
+
+
+@cli.command()
+@vault_option
+@group_by_option
+@color_by_option
+@preset_option
+@click.option("--width", default=1400, show_default=True, type=int, help="Window width, pixels.")
+@click.option("--height", default=900, show_default=True, type=int, help="Window height, pixels.")
+@schematic_option
+def viz3d(
+    vault: str,
+    group_by: str,
+    color_by: str,
+    preset: str,
+    width: int,
+    height: int,
+    schematic: bool,
+) -> None:
+    """Open the vault as a 3-D tree in an interactive viewer.
+
+    Orbit, zoom and pan with the mouse. The toolbar's Cast to Looking Glass
+    button sends the current view to Bridge.
+    """
+    if importlib.util.find_spec("PyQt5") is None or importlib.util.find_spec("pyvistaqt") is None:
+        raise click.UsageError(f"viz3d needs PyQt5 and pyvistaqt. Install with:  {_VIZ3D_EXTRA}")
+    with _open(vault) as kg:
+        root = kg.repo_root
+    from vaultkg import viz3d as viewer  # noqa: PLC0415 -- viz3d-extra import boundary
+
+    try:
+        viewer.launch(
+            root,
+            group_by=group_by,
+            color_by=color_by,
+            preset=preset,
+            organic=not schematic,
+            width=width,
+            height=height,
+        )
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+
+
 @cli.group()
 def snapshot() -> None:
     """Point-in-time metric snapshots of the built graph."""
