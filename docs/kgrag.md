@@ -15,8 +15,8 @@ kgrag query "why do long contexts fail"
 
 KGRAG loads VaultKG through its `vault` adapter, so `vault-kg` must be
 installed in the same environment as `kg-rag`. Until it is, KGRAG lists the
-vault as unavailable rather than failing. The `vault` kind is in KGRAG's
-`main` branch and ships in its next release.
+vault as unavailable rather than failing. The `vault` kind ships in kg-rag
+0.17.0; `pip install "kg-rag[vault]"` installs both.
 
 ## What KGRAG sees
 

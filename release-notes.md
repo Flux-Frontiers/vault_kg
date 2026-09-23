@@ -1,54 +1,40 @@
-# Release Notes -- v0.1.0
+# Release Notes -- v0.2.0
 
 > Released: 2026-09-22
 
-VaultKG turns an Obsidian-style Markdown vault into a knowledge graph built
-from the links its author wrote. Notes, sections, tags and attachments become
-nodes; wikilinks, embeds, tags and typed links such as `supports:: [[X]]`
-become edges. Nothing is extracted by a language model, so the same vault
-always builds the same graph, and every edge can be traced to the line it
-was written on. This first release covers building, searching, analysing and
-viewing a vault, and serving it to agents.
+This release makes the vault's structure easier to read at a glance. In the
+3-D tree, a note's leaf now grows with the number of notes that link to it,
+so the hubs of a vault stand out without reading a label. In the 2-D link
+graph, relations move off the canvas and onto hover, which keeps a note's
+neighbourhood legible when nearly every edge is a plain link.
 
-## What's in it
+## What changed
 
-**A graph that follows Obsidian's rules.** Links resolve the way Obsidian
-resolves them: by path, then by file name, then by alias, with section
-anchors pointing at the heading and ambiguous matches flagged rather than
-guessed. Typed links, from Dataview inline fields or frontmatter keys, keep
-their own relation names, so a vault's own vocabulary (`SUPPORTS`,
-`CONTRADICTS`, `UP`) becomes part of the graph.
+**Leaves sized by backlinks.** `vaultkg quilt` and `vaultkg viz3d` size each
+leaf by its note's backlinks: an unlinked note is 0.6 times the base size,
+one backlink is 1.0 times, and hubs grow with the square root of their count
+up to 2.5 times. `--size-by none` draws every leaf one size. Both the organic
+and the schematic renders honour it.
 
-**Search that stays grounded.** `vaultkg query` uses embeddings only to find
-where to start, then follows stored links from there; `vaultkg pack` returns
-the matching notes and sections with their paths and line numbers, ready to
-hand to a model. `vaultkg links` answers what a note links to and what links
-back to it, section links included.
+**Edge labels on hover.** `vaultkg viz` no longer prints each relation across
+the canvas; it shows it on hover and in the edge colour. `--edge-labels`
+prints them all again.
 
-**The vault's structure, measured.** `vaultkg analyze` reports hubs, bridges,
-wanted pages, orphans and islands from the graph alone, and snapshots record
-those figures so you can compare a vault's shape over time.
+**A newer SDK.** VaultKG now requires kgmodule-utils 0.24.0, which added both
+rendering options and a way to drop a stale vector index. `vaultkg build
+--no-index` removes an index from an earlier build through the SDK rather
+than deleting the files itself; what it does is unchanged.
 
-**Views.** `vaultkg viz` writes the link graph as one interactive HTML page,
-with notes sized by backlinks and coloured by folder. `vaultkg quilt` and
-`vaultkg viz3d` grow the vault as a 3-D tree, its folders as limbs and its
-notes as leaves, for the screen or a Looking Glass display.
-
-**For agents.** `vaultkg-mcp` serves a vault to Claude Code, Cursor or any
-MCP client, with bounded, validated arguments. KGRAG can federate a vault
-with code, documents and its other knowledge graphs through its `vault`
-kind, which ships in KGRAG's next release.
-
-## Installing
+## Upgrading
 
 ```bash
-uv tool install "vault-kg[semantic,viz,viz3d]"
-vaultkg build --vault ~/brain
+uv tool upgrade vault-kg --reinstall
 ```
 
-The core install builds, analyses and serves a vault. The `semantic` extra
-adds search, `viz` the link graph, and `viz3d` the 3-D views. The
-documentation is at https://flux-frontiers.github.io/vault_kg/.
+No rebuild is needed; existing `.vaultkg/` stores work as they are. To keep
+the previous look, pass `--size-by none` to `quilt` and `viz3d` and
+`--edge-labels` to `viz`. KGRAG federates vaults from kg-rag 0.17.0, with the
+`kg-rag[vault]` extra.
 
 ---
 

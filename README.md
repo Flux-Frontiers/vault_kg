@@ -1,6 +1,6 @@
 [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![License: Elastic-2.0](https://img.shields.io/badge/License-Elastic%202.0-blue.svg)](https://www.elastic.co/licensing/elastic-license)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/Flux-Frontiers/vault_kg/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/Flux-Frontiers/vault_kg/releases)
 [![CI](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml/badge.svg)](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml)
 [![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
 [![Docs](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/docs.yml/badge.svg)](https://flux-frontiers.github.io/vault_kg/)
@@ -28,11 +28,11 @@ vault federates with code, documents and every other KG kind through KGRAG.
 covers installation, the graph, graph health, every command, the views, the
 MCP server and the API.
 
-> **Status: alpha (0.1.0).** Build, link resolution, graph-health analysis,
+> **Status: alpha (0.2.0).** Build, link resolution, graph-health analysis,
 > query and pack, snapshots, the 2-D link graph, the 3-D tree with Looking
 > Glass quilts, the `vaultkg` CLI and the `vaultkg-mcp` server work end to end,
-> and have been run against a 250-note vault. The KGRAG adapter
-> (kind `vault`) is merged into KGRAG and ships in its next release.
+> and have been run against a 250-note vault. KGRAG federates a vault as kind
+> `vault` from kg-rag 0.17.0; install it with `kg-rag[vault]`.
 
 ---
 
@@ -363,13 +363,13 @@ or managed service to third parties. Commercial internal use is permitted.
 
 If you use VaultKG in your research or project, please cite it:
 
-> Suchanek, E. G. (2026). *VaultKG: Obsidian Vaults as Knowledge Graphs* (Version 0.1.0) [Software]. Flux-Frontiers. https://doi.org/10.5281/zenodo.22907544
+> Suchanek, E. G. (2026). *VaultKG: Obsidian Vaults as Knowledge Graphs* (Version 0.2.0) [Software]. Flux-Frontiers. https://doi.org/10.5281/zenodo.22907544
 
 ```bibtex
 @software{suchanek_vaultkg,
   author    = {Suchanek, Eric G.},
   title     = {{VaultKG}: Obsidian Vaults as Knowledge Graphs},
-  version   = {0.1.0},
+  version   = {0.2.0},
   year      = {2026},
   publisher = {Flux-Frontiers},
   url       = {https://github.com/Flux-Frontiers/vault_kg},
