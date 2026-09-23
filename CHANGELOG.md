@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`vaultkg viz`**, the link graph as one self-contained interactive HTML
+  page, rendered by the fleet's shared `kg_utils.viz` renderer. Notes are
+  sized by backlinks and coloured by top-level folder. A root note shows its
+  neighbourhood `--hops` links out, ringed in gold; without one, the most
+  connected `--max-nodes` nodes. Headings are opt-in (`--headings`). Needs
+  the new `viz` extra.
+- **`vaultkg quilt` and `vaultkg viz3d`**: the vault grown as a 3-D tree on
+  the shared `kg_utils.viz3d` growth engine. The vault is the trunk, folders
+  are limbs, notes are leaves at their folder's tip, and root notes ring the
+  base. A flat vault grows from nested tags instead (`--group-by auto`).
+  Leaves are coloured by top-level group, first tag, or backlink count
+  (`--color-by`). `quilt` frames with the shared `frame_tree` rule, prints
+  the depth budget, writes a Looking Glass quilt, and can `--cast` it;
+  `viz3d` is an interactive viewer with a Cast to Looking Glass action.
+  `--schematic` draws the layout with straight lines. Needs the new `viz3d`
+  extra.
 
 - **VaultKG**, a `KGModule` for Obsidian-style Markdown vaults. Notes,
   headings (with line spans), tags (nested tags chained), attachments and

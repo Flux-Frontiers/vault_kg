@@ -41,6 +41,14 @@ dependencies. `.mcp.json` calls them from `PATH`.
   its save/load/capture methods.
 - Temporal keys come from frontmatter `date`/`created` only, through
   `_note_dates()`. Never from file mtimes.
+- Viz follows the fleet layering (`kgrag_priv/docs/VISUALIZATION_STACK.md`):
+  the 2-D renderer is `kg_utils.viz.build_graph_html`, growth is
+  `kg_utils.viz3d`, framing is `frame_tree`, quilts are quiltwright. This repo
+  owns only the grammar: `theme.py` (colours, stdlib only), `viz.py` (2-D
+  theme and node choice), `scene.py` (placement is NumPy only and testable
+  without PyVista; composition needs `viz3d`), `viz3d.py` (Qt window).
+  Never import a render stack at module scope outside those modules;
+  `tests/test_viz.py` checks that a bare `import vaultkg.cli` pulls none.
 - Tests embed with `tests/conftest.py`'s `HashEmbedder`; no test may download
   a model.
 

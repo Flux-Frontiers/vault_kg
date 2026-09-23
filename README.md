@@ -23,8 +23,9 @@ vault federates with code, documents and every other KG kind through KGRAG.
 *Author: Eric G. Suchanek, PhD -- Flux-Frontiers, Liberty TWP, OH*
 
 > **Status: alpha (0.1.0).** Build, link resolution, graph-health analysis,
-> query and pack, snapshots, the `vaultkg` CLI and the `vaultkg-mcp` server work
-> end to end, and have been run against a 250-note vault. The KGRAG adapter
+> query and pack, snapshots, the 2-D link graph, the 3-D tree with Looking
+> Glass quilts, the `vaultkg` CLI and the `vaultkg-mcp` server work end to end,
+> and have been run against a 250-note vault. The KGRAG adapter
 > (kind `vault`) is merged into KGRAG and ships in its next release.
 
 ---
@@ -66,6 +67,18 @@ first full build downloads the embedding model, `BAAI/bge-small-en-v1.5`, about
 130 MB. Without the extra, `build --no-index`, `analyze`, `stats`, `links`,
 `snapshot` and the rest of the MCP server work, and `query` says which package
 is missing.
+
+Two more extras add the views; install them together with `semantic` or on
+their own:
+
+| Extra | Adds |
+|---|---|
+| `viz` | `vaultkg viz`, the interactive 2-D link graph (pyvis) |
+| `viz3d` | `vaultkg quilt` and `vaultkg viz3d`, the vault grown as a 3-D tree (PyVista, PyQt5, quiltwright) |
+
+```bash
+uv tool install "vault-kg[semantic,viz,viz3d]"
+```
 
 To work on VaultKG itself, install from a clone:
 
@@ -140,10 +153,14 @@ Every command takes `--vault DIR` (default: the current directory) and `--help`.
 | `vaultkg snapshot save [KEY]` | Record the current metrics (key defaults to a UTC timestamp) | `--force` to save when nothing changed |
 | `vaultkg snapshot list` | List snapshots, newest first | |
 | `vaultkg snapshot diff A B` | Compare two snapshots | |
+| `vaultkg viz [ROOT]` | Write the link graph as an interactive HTML page | `-o FILE` (default `<vault name>_links.html`), `--hops` (0-5, default 1), `--max-nodes` (2-5000, default 200), `--headings` |
+| `vaultkg quilt` | Grow the vault as a 3-D tree and render a Looking Glass quilt | `--preset` (default `16-landscape`), `-o DIR` (default `renders`), `--group-by`, `--color-by`, `--tip-radius`, `--leaf-size`, `--zoom`, `--fov`, `--cast`, `--schematic` |
+| `vaultkg viz3d` | Open the 3-D tree in an interactive viewer | `--group-by`, `--color-by`, `--preset`, `--width`, `--height`, `--schematic` |
 | `vaultkg --version` | Print the installed version | |
 
 `query` and `pack` need the `semantic` extra and a build without `--no-index`.
-The other commands need only a built graph.
+`viz` needs the `viz` extra; `quilt` and `viz3d` need `viz3d`. The other
+commands need only a built graph.
 
 ---
 
@@ -197,6 +214,61 @@ modification times aren't used, because they change on every clone.
 `vaultkg analyze --json` prints the same figures as JSON. `vaultkg snapshot
 save` records them, so `snapshot diff` shows how a vault's structure changed
 between two dates.
+
+---
+
+## See the vault
+
+### The link graph
+
+`vaultkg viz` writes one self-contained HTML page that opens from disk in any
+browser, with no server:
+
+```bash
+vaultkg viz --vault ~/brain                          # the most connected part of the vault
+vaultkg viz --vault ~/brain wiki/Retrieval --hops 2  # one note's neighbourhood
+```
+
+- Notes are sized by backlinks, so hubs stand out, and coloured by top-level
+  folder. Tags are diamonds, attachments squares, and missing notes grey
+  triangles.
+- With a root note, the page shows everything within `--hops` links of it,
+  in either direction, and rings the root in gold. Without one, it shows the
+  most connected `--max-nodes` nodes.
+- Headings are left out unless you pass `--headings`; a vault has several per
+  note, and they hide the links between notes.
+- Drag to pan, scroll to zoom, and click a node for its details.
+
+### The vault as a tree
+
+`vaultkg quilt` and `vaultkg viz3d` grow the vault as a 3-D tree: the vault is
+the trunk, each folder is a limb, subfolders branch off their parent, and
+every note is a leaf at the tip of its folder. Notes at the vault root ring
+the base of the trunk. A bigger folder grows a longer limb. The growth is
+seeded from the vault's name, so the same vault always grows the same tree.
+
+```bash
+vaultkg quilt --vault ~/brain                     # writes renders/brain_qs8x6a1.77778.png
+vaultkg quilt --vault ~/brain --color-by links --cast
+vaultkg viz3d --vault ~/brain                     # interactive; orbit, zoom, pan
+```
+
+| Option | Values |
+|---|---|
+| `--group-by` | `auto` (default): folders, or nested tags for a vault with no folders. `folder`. `tag`: limbs from nested tags (`#ml/retrieval`), untagged notes at the base. |
+| `--color-by` | `group` (default): top-level folder or tag. `tag`: first tag. `links`: backlink count, pale to dark. |
+| `--schematic` | Draw the layout with straight lines instead of growing wood. Fast at any size. |
+
+`quilt` prints the colour legend and the depth budget for the chosen preset,
+then writes the quilt with its view-count suffix. `--cast` sends it to a
+running [Looking Glass Bridge](https://lookingglassfactory.com/software/looking-glass-bridge);
+if Bridge isn't running, the quilt is still written. In `viz3d`, the **Cast to
+Looking Glass** toolbar button sends the current view.
+
+The tree is built on the fleet's shared growth engine
+(`kg_utils.viz3d`) and light-field output
+([quiltwright](https://github.com/Flux-Frontiers/quiltwright)), as in the other
+KGRAG modules.
 
 ---
 
