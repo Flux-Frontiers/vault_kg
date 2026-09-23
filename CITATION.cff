@@ -18,6 +18,7 @@ authors:
     email: suchanek@flux-frontiers.com
     affiliation: "Flux-Frontiers"
 version: "0.1.0"
+date-released: "2026-09-22"
 license-url: "https://www.elastic.co/licensing/elastic-license"
 repository-code: "https://github.com/Flux-Frontiers/vault_kg"
 url: "https://github.com/Flux-Frontiers/vault_kg"
