@@ -21,7 +21,8 @@
 # ----------------------
 #   poetry install                      core runtime only
 #   poetry install --with dev           + pytest, ruff, ty, pre-commit
-#   poetry install --with dev --all-extras   full maintainer environment
+#   poetry install --with docs          + mkdocs, to build the docs site
+#   poetry install --with dev,docs --all-extras   full maintainer environment
 #
 # dockg and pycodekg index this repo but nothing under src/ imports them, so
 # they are global tools, not dependencies ("Tools are global", FLEET_STANDARDS).
@@ -109,6 +110,7 @@ Homepage   = "https://github.com/Flux-Frontiers/vault_kg"
 Repository = "https://github.com/Flux-Frontiers/vault_kg"
 Issues     = "https://github.com/Flux-Frontiers/vault_kg/issues"
 Changelog  = "https://github.com/Flux-Frontiers/vault_kg/blob/main/CHANGELOG.md"
+Documentation = "https://flux-frontiers.github.io/vault_kg/"
 
 [project.scripts]
 vaultkg     = "vaultkg.cli:cli"
@@ -135,6 +137,16 @@ ty = ">=0.0.44"
 # extra's torch stack. Exact pin, matching kgmodule-utils' own.
 sqlite-vec = "0.1.9"
 numpy = ">=1.26.0"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+# mkdocs is capped below 2: 2.0 removes the plugin system, and this site
+# depends on two plugins (search, mkdocstrings).
+mkdocs = ">=1.6,<2"
+mkdocs-material = ">=9.5"
+mkdocstrings = { version = ">=0.26", extras = ["python"] }
 
 # ---------------------------------------------------------------------------
 # Tool configuration

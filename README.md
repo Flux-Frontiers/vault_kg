@@ -3,6 +3,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/Flux-Frontiers/vault_kg/releases)
 [![CI](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml/badge.svg)](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml)
 [![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![Docs](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/docs.yml/badge.svg)](https://flux-frontiers.github.io/vault_kg/)
 
 # VaultKG -- Obsidian Vaults as Knowledge Graphs
 
@@ -21,6 +22,10 @@ built on [kgmodule-utils](https://github.com/Flux-Frontiers/KG_utils), so a
 vault federates with code, documents and every other KG kind through KGRAG.
 
 *Author: Eric G. Suchanek, PhD -- Flux-Frontiers, Liberty TWP, OH*
+
+**Documentation:** [flux-frontiers.github.io/vault_kg](https://flux-frontiers.github.io/vault_kg/)
+covers installation, the graph, graph health, every command, the views, the
+MCP server and the API.
 
 > **Status: alpha (0.1.0).** Build, link resolution, graph-health analysis,
 > query and pack, snapshots, the 2-D link graph, the 3-D tree with Looking

@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A documentation site** at flux-frontiers.github.io/vault_kg (MkDocs
+  Material, as in connectome_kg): getting started, what the graph holds and
+  how links resolve, graph health, a reference for every command, the views,
+  the MCP server, KGRAG, and an API reference from the docstrings. Examples
+  show real output. `docs.yml` builds it with `--strict` on every pull
+  request and deploys it to GitHub Pages from `main`. A `docs` Poetry group
+  holds the toolchain. `tests/test_docs_coverage.py` fails when a command,
+  an MCP tool or a module is missing from the site, or a page is missing
+  from the nav.
 - **`vaultkg viz`**, the link graph as one self-contained interactive HTML
   page, rendered by the fleet's shared `kg_utils.viz` renderer. Notes are
   sized by backlinks and coloured by top-level folder. A root note shows its
@@ -62,6 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error naming the fix, and a full `build` without that extra stops before
   writing anything rather than failing at the index step. `vaultkg-mcp` refuses to start on an unbuilt vault
   rather than creating an empty graph and reporting zero notes.
+- **Backlinks include links to a note's sections.** `links --in` and the
+  `note_links` MCP tool count `[[Note#Heading]]` as a backlink to the note,
+  as Obsidian and `analyze` do, and each row names the node the link lands
+  on (`via`). Before, a link to a section was missing from the note's
+  backlinks while `analyze` counted it.
 - **`VaultKG.node()` and `VaultKG.links()`**, shared by the CLI and the MCP
   server. Both accept a node id or a note's vault path (`wiki/X`,
   `wiki/X.md`, `note:wiki/X.md`).

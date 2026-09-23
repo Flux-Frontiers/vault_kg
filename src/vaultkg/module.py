@@ -156,12 +156,17 @@ class VaultKG(KGModule):
     ) -> list[dict[str, Any]]:
         """Links at a node: what it links to, or what links to it (backlinks).
 
+        A note's backlinks include links to any of its sections
+        (``[[Note#Heading]]``), as Obsidian counts them.
+
         :param node_id: Node id or vault path, as for :meth:`node`.
         :param direction: ``"out"`` (the node is the source) or ``"in"``.
         :param rel: One relation (``LINKS_TO``, ``SUPPORTS``...), or ``""`` for all.
         :param limit: Links returned, 1-500.
-        :return: ``{rel, node, kind, name, evidence}`` per link, ordered by
-            relation then node id.
+        :return: ``{rel, node, kind, name, evidence, via}`` per link, ordered
+            by relation then node id. ``via`` is the node the link lands on:
+            the node itself, or for a note's backlinks, the section a link
+            points into.
         :raises ValueError: On a bad id, direction or limit.
         """
         nid = normalize_node_id(node_id)
@@ -169,15 +174,29 @@ class VaultKG(KGModule):
             raise ValueError(f"direction must be 'out' or 'in', got {direction!r}")
         bounded_int("limit", limit, 1, MAX_LIMIT)
         near, far = ("src", "dst") if direction == "out" else ("dst", "src")
-        sql = (
-            f"SELECT e.rel, e.{far}, n.kind, n.name, e.evidence FROM edges e "
-            f"LEFT JOIN nodes n ON n.id = e.{far} WHERE e.{near} = ?"
-        )
+        where = f"e.{near} = ?"
         params: list[Any] = [nid]
+        if direction == "in" and nid.startswith("note:"):
+            # A link to one of the note's sections is a backlink to the note,
+            # as Obsidian and analyze() count it. Headings are matched by id
+            # prefix as a range, which needs no escaping of % or _ in paths.
+            # The note's own heading tree (CONTAINS among its sections) is
+            # structure inside the note, not a link to it.
+            lo = "heading:" + nid.removeprefix("note:") + "#"
+            hi = lo[:-1] + chr(ord("#") + 1)
+            where = (
+                "(e.dst = ? OR (e.dst >= ? AND e.dst < ?)) "
+                "AND e.src != ? AND NOT (e.src >= ? AND e.src < ?)"
+            )
+            params = [nid, lo, hi, nid, lo, hi]
         if rel:
-            sql += " AND e.rel = ?"
+            where += " AND e.rel = ?"
             params.append(rel.strip().upper())
-        sql += f" ORDER BY e.rel, e.{far} LIMIT ?"
+        sql = (
+            f"SELECT e.rel, e.{far}, n.kind, n.name, e.evidence, e.{near} FROM edges e "
+            f"LEFT JOIN nodes n ON n.id = e.{far} WHERE {where} "
+            f"ORDER BY e.rel, e.{far}, e.{near} LIMIT ?"
+        )
         params.append(limit)
         return [
             {
@@ -186,6 +205,7 @@ class VaultKG(KGModule):
                 "kind": r[2],
                 "name": r[3],
                 "evidence": json.loads(r[4]) if r[4] else {},
+                "via": r[5],
             }
             for r in self.store.con.execute(sql, params)
         ]

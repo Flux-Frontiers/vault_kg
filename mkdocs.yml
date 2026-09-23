@@ -1,0 +1,71 @@
+site_name: VaultKG
+site_description: Obsidian-style Markdown vaults as knowledge graphs -- every edge a link the author wrote, searchable, analyzable, and viewable in 2-D, 3-D and on a Looking Glass.
+site_url: https://flux-frontiers.github.io/vault_kg/
+repo_url: https://github.com/Flux-Frontiers/vault_kg
+repo_name: Flux-Frontiers/vault_kg
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: sphinx
+            show_source: true
+            show_root_heading: true
+            heading_level: 2
+            merge_init_into_class: true
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install and build a vault: getting-started.md
+  - The graph:
+      - What the graph holds: graph.md
+      - Graph health: health.md
+  - CLI reference:
+      - Every vaultkg command: cli.md
+  - Visualization:
+      - Seeing the vault: visualization.md
+  - Agents:
+      - MCP server: mcp.md
+      - Using VaultKG from KGRAG: kgrag.md
+  - API reference:
+      - VaultKG: api/module.md
+      - Extractor: api/extractor.md
+      - Parsing a note: api/parse.md
+      - Graph health: api/analysis.md
+      - Link graph (2-D): api/viz.md
+      - Vault tree (3-D): api/scene.md

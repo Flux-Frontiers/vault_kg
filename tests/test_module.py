@@ -273,3 +273,20 @@ def test_build_without_the_semantic_extra_stops_before_building(
     assert r.exit_code == 2
     assert "missing sentence_transformers" in r.output and "--no-index" in r.output
     assert not (vault / ".vaultkg" / "graph.sqlite").exists()
+
+
+def test_backlinks_include_links_to_the_notes_sections(built: VaultKG) -> None:
+    # Search.md links [[Retrieval#Failure modes]]: that is a backlink to the
+    # note, as Obsidian and `vaultkg analyze` both count it, even though the
+    # edge lands on the heading.
+    back = built.links(RETRIEVAL, direction="in")
+    via = {(r["node"], r["via"]) for r in back}
+    assert (
+        "note:wiki/concepts/Search.md",
+        "heading:wiki/concepts/Retrieval.md#failure-modes",
+    ) in via
+    assert ("note:index.md", RETRIEVAL) in via
+    backlinkers = {r["node"] for r in back if r["rel"] != "CONTAINS"}
+    assert backlinkers == built.health().in_links[RETRIEVAL]
+    # A note's own CONTAINS edges to its headings are not backlinks.
+    assert all(not r["node"].startswith("heading:wiki/concepts/Retrieval.md") for r in back)
