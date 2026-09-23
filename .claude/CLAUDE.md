@@ -49,6 +49,11 @@ dependencies. `.mcp.json` calls them from `PATH`.
   without PyVista; composition needs `viz3d`), `viz3d.py` (Qt window).
   Never import a render stack at module scope outside those modules;
   `tests/test_viz.py` checks that a bare `import vaultkg.cli` pulls none.
+- The docs site is `docs/` + `mkdocs.yml`, built with
+  `.venv/bin/mkdocs build --strict` (`poetry install --with docs`). A new
+  command, MCP tool or module must get a page or an API stub and a nav entry;
+  `tests/test_docs_coverage.py` fails until it does. Example output on the
+  pages is real output from a built vault; regenerate it, never type it.
 - Tests embed with `tests/conftest.py`'s `HashEmbedder`; no test may download
   a model.
 

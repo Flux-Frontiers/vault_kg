@@ -183,7 +183,11 @@ def links(vault: str, node_id: str, backlinks: bool, rel: str, limit: int) -> No
         except ValueError as exc:
             raise click.UsageError(str(exc)) from exc
     for r in rows:
-        click.echo(f"{r['rel']:<12} {'<-' if backlinks else '->'} {r['node']}")
+        at = r["via"].partition("#")[2] if r["via"].startswith("heading:") and backlinks else ""
+        click.echo(
+            f"{r['rel']:<12} {'<-' if backlinks else '->'} {r['node']}"
+            + (f"  (#{at})" if at else "")
+        )
 
 
 _VIZ_EXTRA = 'pip install "vault-kg[viz]"'

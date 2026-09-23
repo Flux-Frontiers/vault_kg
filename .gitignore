@@ -3,6 +3,8 @@ __pycache__/
 .venv/
 dist/
 build/
+# mkdocs build output (`poetry run mkdocs build`)
+site/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/

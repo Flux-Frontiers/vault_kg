@@ -190,8 +190,9 @@ def note_links(node_id: str, direction: str = "out", rel: str = "", limit: int =
     :param rel: One relation (LINKS_TO, EMBEDS, TAGGED, CONTAINS, or a typed one
         such as SUPPORTS), or ``""`` for all.
     :param limit: Links returned, 1-500.
-    :return: JSON list of {rel, node, kind, name, evidence}; evidence carries
-        the source line numbers and link aliases.
+    :return: JSON list of {rel, node, kind, name, evidence, via}. evidence
+        carries the source line numbers and link aliases; via is the node the
+        link lands on, which for a note's backlinks may be one of its sections.
     """
     return _json(_get_kg().links(node_id, direction=direction, rel=rel, limit=limit))
 
