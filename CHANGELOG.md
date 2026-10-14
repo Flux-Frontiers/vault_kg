@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Persistent build config: `.vaultkg/config.yaml`.** Its one key,
+  `exclude`, lists folder names or globs to skip, and `VaultKG` reads it on
+  construction, so the CLI, the MCP server, `viz3d` and the KGRAG adapter all
+  build with the same excludes. `--exclude` adds to the stored list for one
+  build. An unknown key or a malformed list is an error, not ignored.
+  Motivated by a real leak: VaultKG doesn't read `.gitignore`, and a build
+  run without the right `--exclude` indexed a gitignored folder of private
+  notes, which the MCP server then served.
+
 ## [0.2.0] - 2026-09-22
 
 ### Added

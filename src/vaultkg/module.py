@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import yaml
 from kg_utils.extractor import KGExtractor
 from kg_utils.pipeline import KGModule
 from kg_utils.specs import QueryResult, SnippetPack
@@ -32,6 +33,37 @@ _CODE_GRAPH_KEYS = frozenset(
     {"module_count", "class_count", "function_count", "method_count", "docstring_coverage"}
 )
 
+#: Build settings stored in the vault, so every entry point (CLI, MCP server,
+#: KGRAG adapter) builds with the same excludes.
+CONFIG_FILE = Path(".vaultkg") / "config.yaml"
+_CONFIG_KEYS = frozenset({"exclude"})
+
+
+def load_config(repo_root: str | Path) -> dict[str, Any]:
+    """Read ``<vault>/.vaultkg/config.yaml``.
+
+    The file is optional. Its only key is ``exclude``: a list of folder names
+    or glob patterns, the same values ``vaultkg build --exclude`` takes.
+
+    :param repo_root: Vault root.
+    :return: ``{"exclude": [...]}``, empty when the file is absent.
+    :raises ValueError: The file is not a mapping, has an unknown key, or
+        ``exclude`` is not a list of non-empty strings.
+    """
+    path = Path(repo_root) / CONFIG_FILE
+    if not path.is_file():
+        return {}
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: expected a mapping, got {type(data).__name__}")
+    unknown = sorted(set(data) - _CONFIG_KEYS)
+    if unknown:
+        raise ValueError(f"{path}: unknown keys {unknown}; allowed: {sorted(_CONFIG_KEYS)}")
+    exclude = data.get("exclude") or []
+    if not isinstance(exclude, list) or not all(isinstance(x, str) and x for x in exclude):
+        raise ValueError(f"{path}: exclude must be a list of non-empty strings")
+    return {"exclude": exclude}
+
 
 class VaultKG(KGModule):
     """Knowledge graph over one Markdown vault.
@@ -41,7 +73,8 @@ class VaultKG(KGModule):
 
     :param repo_root: Vault root.
     :param exclude: Directory names or glob patterns to skip when building,
-        on top of every dot-directory and ``node_modules``.
+        added to those in ``.vaultkg/config.yaml`` and to every dot-directory
+        and ``node_modules``.
     :param kwargs: Passed to :class:`kg_utils.pipeline.KGModule`
         (``db_path``, ``vectors_path``, ``model``...).
     """
@@ -58,7 +91,9 @@ class VaultKG(KGModule):
         **kwargs: Any,
     ) -> None:
         super().__init__(repo_root, db_path, vectors_path, **kwargs)
-        self.exclude = tuple(exclude or ())
+        configured = load_config(self.repo_root).get("exclude", [])
+        # Arguments add to the stored list; order kept, duplicates dropped.
+        self.exclude = tuple(dict.fromkeys([*configured, *(exclude or ())]))
 
     # ------------------------------------------------------------ contract
     def kind(self) -> str:

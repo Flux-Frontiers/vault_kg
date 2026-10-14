@@ -77,7 +77,10 @@ def cli() -> None:
     "--exclude",
     multiple=True,
     metavar="PATTERN",
-    help="Directory name or glob to skip (repeatable). Dot-folders are always skipped.",
+    help=(
+        "Directory name or glob to skip (repeatable), added to the list in "
+        ".vaultkg/config.yaml. Dot-folders are always skipped."
+    ),
 )
 @click.option("--no-index", is_flag=True, help="Build the graph only; skip embeddings.")
 @click.option("--wipe/--no-wipe", default=True, show_default=True, help="Rebuild from scratch.")
