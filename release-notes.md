@@ -1,40 +1,49 @@
-# Release Notes -- v0.2.0
+# Release Notes -- v0.3.0
 
-> Released: 2026-09-22
+> Released: 2026-10-14
 
-This release makes the vault's structure easier to read at a glance. In the
-3-D tree, a note's leaf now grows with the number of notes that link to it,
-so the hubs of a vault stand out without reading a label. In the 2-D link
-graph, relations move off the canvas and onto hover, which keeps a note's
-neighbourhood legible when nearly every edge is a plain link.
+This release lets a vault remember what to leave out. Build excludes now live
+in the vault, in `.vaultkg/config.yaml`, and every way of building or serving
+the graph reads them: the `vaultkg` CLI, the MCP server, `viz3d` and the
+KGRAG adapter. A private folder listed there stays out of the graph no matter
+which tool builds it.
 
 ## What changed
 
-**Leaves sized by backlinks.** `vaultkg quilt` and `vaultkg viz3d` size each
-leaf by its note's backlinks: an unlinked note is 0.6 times the base size,
-one backlink is 1.0 times, and hubs grow with the square root of their count
-up to 2.5 times. `--size-by none` draws every leaf one size. Both the organic
-and the schematic renders honour it.
+**Persistent build config.** Create `<vault>/.vaultkg/config.yaml` with an
+`exclude` list of folder names or globs, the same values `--exclude` takes.
+`VaultKG` reads it when it is constructed, so a plain `vaultkg build` uses
+it with no flags. `--exclude` still works and adds to the stored list for
+that one build. A file that is not a mapping, has an unknown key, or has a
+malformed list is an error rather than being silently ignored.
 
-**Edge labels on hover.** `vaultkg viz` no longer prints each relation across
-the canvas; it shows it on hover and in the edge colour. `--edge-labels`
-prints them all again.
+**Why it matters.** VaultKG does not read `.gitignore`. Before this release,
+excludes existed only as command-line flags, so a build run without them
+indexed every folder, including gitignored ones. In a real vault that put a
+folder of private notes into the graph, and the MCP server then served them.
+Keeping the list in the vault closes that gap for every entry point at once.
 
-**A newer SDK.** VaultKG now requires kgmodule-utils 0.24.0, which added both
-rendering options and a way to drop a stale vector index. `vaultkg build
---no-index` removes an index from an earlier build through the SDK rather
-than deleting the files itself; what it does is unchanged.
+**Current fleet dependencies.** VaultKG now requires kgmodule-utils 0.26.0
+and, for the 3-D views, quiltwright 0.16.0.
 
 ## Upgrading
 
 ```bash
-uv tool upgrade vault-kg --reinstall
+uv tool install --force "vault-kg[semantic]==0.3.0"   # or: pip install -U vault-kg
 ```
 
-No rebuild is needed; existing `.vaultkg/` stores work as they are. To keep
-the previous look, pass `--size-by none` to `quilt` and `viz3d` and
-`--edge-labels` to `viz`. KGRAG federates vaults from kg-rag 0.17.0, with the
-`kg-rag[vault]` extra.
+Nothing changes until you add a config file; existing `--exclude` flags keep
+working. To make your excludes permanent:
+
+```yaml
+# <vault>/.vaultkg/config.yaml
+exclude:
+  - templates
+  - _inbox
+```
+
+The file is safe to commit; only the `.sqlite` files in `.vaultkg/` need
+ignoring. Rebuild once after adding it.
 
 ---
 
