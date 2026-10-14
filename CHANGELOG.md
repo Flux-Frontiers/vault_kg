@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run without the right `--exclude` indexed a gitignored folder of private
   notes, which the MCP server then served.
 
+### Changed
+
+- **Fleet floors raised to the latest releases:** `kgmodule-utils>=0.26.0`
+  (core and every extra) and `quiltwright>=0.16.0`; relocked.
+
 ## [0.2.0] - 2026-09-22
 
 ### Added
