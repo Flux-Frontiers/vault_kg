@@ -113,8 +113,18 @@ path, with or without `.md`. `--vault` defaults to the current directory.
 `build` rebuilds the whole graph from the notes on disk; there's no incremental
 update. Run it again after you edit the vault.
 
-- **Excluded folders aren't remembered.** Pass the same `--exclude` options on
-  every build, or the next build indexes those folders again.
+- **Store excludes in the vault.** List them in `.vaultkg/config.yaml`, and
+  every build uses them: the CLI, the MCP server and the KGRAG adapter alike.
+  `--exclude` adds to that list for one build. Excludes passed only on the
+  command line aren't remembered, and VaultKG doesn't read `.gitignore`, so a
+  private working folder must be listed here or it is indexed.
+
+  ```yaml
+  # <vault>/.vaultkg/config.yaml
+  exclude:
+    - templates
+    - _inbox
+  ```
 - **Keep the default `--wipe`.** `--no-wipe` adds and updates nodes but never
   removes them, so deleted and renamed notes stay in the graph.
 - **`--no-index` removes an existing vector index**, because an index from an

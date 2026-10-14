@@ -31,7 +31,7 @@ Parse the vault into a graph and a vector index, in `<vault>/.vaultkg/`.
 
 | Option | Meaning |
 |---|---|
-| `--exclude PATTERN` | Folder name or glob on vault-relative paths to skip. Repeatable. Dot-folders are always skipped |
+| `--exclude PATTERN` | Folder name or glob on vault-relative paths to skip. Repeatable. Adds to the `exclude` list in `.vaultkg/config.yaml`. Dot-folders are always skipped |
 | `--no-index` | Build the graph only. Removes an existing vector index, which would no longer match |
 | `--wipe / --no-wipe` | Rebuild from scratch. Default `--wipe`; `--no-wipe` never removes deleted notes |
 

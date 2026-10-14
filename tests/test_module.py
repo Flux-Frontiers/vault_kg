@@ -9,7 +9,7 @@ from click.testing import CliRunner
 
 from tests.conftest import HashEmbedder
 from vaultkg.cli import cli
-from vaultkg.module import VaultKG, normalize_node_id
+from vaultkg.module import CONFIG_FILE, VaultKG, load_config, normalize_node_id
 
 RETRIEVAL = "note:wiki/concepts/Retrieval.md"
 
@@ -290,3 +290,64 @@ def test_backlinks_include_links_to_the_notes_sections(built: VaultKG) -> None:
     assert backlinkers == built.health().in_links[RETRIEVAL]
     # A note's own CONTAINS edges to its headings are not backlinks.
     assert all(not r["node"].startswith("heading:wiki/concepts/Retrieval.md") for r in back)
+
+
+# ---------------------------------------------------------------- build config
+
+
+def _note_ids(vault: Path) -> set[str]:
+    with VaultKG(vault) as kg:
+        rows = kg.store.con.execute("SELECT id FROM nodes WHERE kind = 'note'")
+        return {r[0] for r in rows}
+
+
+def _write_config(vault: Path, text: str) -> None:
+    (vault / ".vaultkg").mkdir(exist_ok=True)
+    (vault / CONFIG_FILE).write_text(text, encoding="utf-8")
+
+
+def test_config_absent_is_empty(vault: Path) -> None:
+    assert load_config(vault) == {}
+    assert VaultKG(vault).exclude == ()
+
+
+def test_config_excludes_apply_without_flags(vault: Path) -> None:
+    _write_config(vault, "exclude:\n  - projects\n")
+    r = CliRunner().invoke(cli, ["build", "--vault", str(vault), "--no-index"])
+    assert r.exit_code == 0, r.output
+    notes = _note_ids(vault)
+    assert "note:index.md" in notes
+    assert not any(n.startswith("note:projects/") for n in notes)
+
+
+def test_flags_add_to_config(vault: Path) -> None:
+    _write_config(vault, "exclude: [projects]\n")
+    args = ["build", "--vault", str(vault), "--no-index", "--exclude", "wiki/sources"]
+    r = CliRunner().invoke(cli, args)
+    assert r.exit_code == 0, r.output
+    notes = _note_ids(vault)
+    assert not any(n.startswith(("note:projects/", "note:wiki/sources/")) for n in notes)
+    assert "note:wiki/concepts/Search.md" in notes
+
+
+def test_every_entry_point_sees_the_config(vault: Path) -> None:
+    # The MCP server, viz3d and the KGRAG adapter build VaultKG with no
+    # exclude argument; they must still get the stored list.
+    _write_config(vault, "exclude: [projects, projects]\n")
+    assert VaultKG(vault).exclude == ("projects",)
+    assert VaultKG(vault, exclude=["Orphan.md"]).exclude == ("projects", "Orphan.md")
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("- projects\n", "expected a mapping"),
+        ("exclude: [projects]\nraw_dir: RAW\n", "unknown keys"),
+        ("exclude: projects\n", "list of non-empty strings"),
+        ("exclude: ['']\n", "list of non-empty strings"),
+    ],
+)
+def test_config_rejects_bad_files(vault: Path, text: str, message: str) -> None:
+    _write_config(vault, text)
+    with pytest.raises(ValueError, match=message):
+        load_config(vault)
