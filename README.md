@@ -110,8 +110,10 @@ path, with or without `.md`. `--vault` defaults to the current directory.
 
 ### Keep the graph current
 
-`build` rebuilds the whole graph from the notes on disk; there's no incremental
-update. Run it again after you edit the vault.
+`build` rebuilds the whole graph from the notes on disk, then re-embeds only
+the notes and sections whose text changed, so a rebuild after a small edit
+is quick. The first build of a vault embeds everything once. `--full`
+re-embeds every note. Run `build` again after you edit the vault.
 
 - **Store excludes in the vault.** List them in `.vaultkg/config.yaml`, and
   every build uses them: the CLI, the MCP server and the KGRAG adapter alike.
@@ -160,7 +162,7 @@ Every command takes `--vault DIR` (default: the current directory) and `--help`.
 
 | Command | What it does | Options |
 |---|---|---|
-| `vaultkg build` | Parse the vault into a graph and a vector index | `--exclude PATTERN` (repeatable; a folder name or a glob on vault-relative paths), `--no-index`, `--wipe/--no-wipe` (default `--wipe`) |
+| `vaultkg build` | Parse the vault into a graph and a vector index | `--exclude PATTERN` (repeatable; a folder name or a glob on vault-relative paths), `--no-index`, `--full` (re-embed every note), `--wipe/--no-wipe` (default `--wipe`) |
 | `vaultkg analyze` | Print the graph-health report | `--json` for the metrics as JSON |
 | `vaultkg stats` | Print node and edge counts as JSON | |
 | `vaultkg query Q` | Semantic search, then expansion along links | `-k` seed hits (1-100, default 8), `--hop` link hops (0-5, default 1), `--json` for the full result |

@@ -33,7 +33,8 @@ Parse the vault into a graph and a vector index, in `<vault>/.vaultkg/`.
 |---|---|
 | `--exclude PATTERN` | Folder name or glob on vault-relative paths to skip. Repeatable. Adds to the `exclude` list in `.vaultkg/config.yaml`. Dot-folders are always skipped |
 | `--no-index` | Build the graph only. Removes an existing vector index, which would no longer match |
-| `--wipe / --no-wipe` | Rebuild from scratch. Default `--wipe`; `--no-wipe` never removes deleted notes |
+| `--full` | Re-embed every note. Without it, only notes and sections whose text changed are embedded; the first build of a vault embeds everything once |
+| `--wipe / --no-wipe` | Rebuild from scratch. Default `--wipe`; `--no-wipe` never removes deleted notes and takes the full re-embedding path |
 
 ```bash
 vaultkg build --vault ~/brain --exclude templates --exclude raw

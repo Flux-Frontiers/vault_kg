@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import kg_utils.pipeline
 import pytest
 from click.testing import CliRunner
 
@@ -351,3 +352,25 @@ def test_config_rejects_bad_files(vault: Path, text: str, message: str) -> None:
     _write_config(vault, text)
     with pytest.raises(ValueError, match=message):
         load_config(vault)
+
+
+# ---------------------------------------------------------------- incremental build
+
+
+def test_cli_build_syncs_by_default(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The stub embedder stands in for the semantic extra, which CI does not install.
+    monkeypatch.setattr("vaultkg.cli._missing_semantic", lambda: [])
+    monkeypatch.setattr(
+        kg_utils.pipeline, "SentenceTransformerEmbedder", lambda *_a: HashEmbedder()
+    )
+    runner = CliRunner()
+    first = runner.invoke(cli, ["build", "--vault", str(vault)])
+    assert first.exit_code == 0, first.output
+    assert "synced" in first.output and "0 deleted" in first.output
+    second = runner.invoke(cli, ["build", "--vault", str(vault)])
+    assert "synced      : 0 embedded, 0 deleted" in second.output
+    (vault / "Orphan.md").write_text("Edited orphan text.\n", encoding="utf-8")
+    third = runner.invoke(cli, ["build", "--vault", str(vault)])
+    assert "synced      : 1 embedded, 0 deleted" in third.output
+    full = runner.invoke(cli, ["build", "--vault", str(vault), "--full"])
+    assert full.exit_code == 0 and "synced" not in full.output and "indexed" in full.output
