@@ -126,6 +126,7 @@ re-embeds every note. Run `build` again after you edit the vault.
   exclude:
     - templates
     - _inbox
+  raw_dir: RAW    # where `vaultkg add` writes sources (the default)
   ```
 - **Keep the default `--wipe`.** `--no-wipe` adds and updates nodes but never
   removes them, so deleted and renamed notes stay in the graph.
@@ -163,6 +164,7 @@ Every command takes `--vault DIR` (default: the current directory) and `--help`.
 | Command | What it does | Options |
 |---|---|---|
 | `vaultkg build` | Parse the vault into a graph and a vector index | `--exclude PATTERN` (repeatable; a folder name or a glob on vault-relative paths), `--no-index`, `--full` (re-embed every note), `--wipe/--no-wipe` (default `--wipe`) |
+| `vaultkg add PATH...` | Convert sources (PDF, office, LaTeX, HTML, Markdown) into `<raw_dir>/<kind>/` with provenance frontmatter; never touches the graph | `--kind KIND` (required), `--prefix TEXT`, `--no-copy`; needs the `ingest` extra |
 | `vaultkg analyze` | Print the graph-health report | `--json` for the metrics as JSON |
 | `vaultkg stats` | Print node and edge counts as JSON | |
 | `vaultkg query Q` | Semantic search, then expansion along links | `-k` seed hits (1-100, default 8), `--hop` link hops (0-5, default 1), `--json` for the full result |

@@ -17,7 +17,8 @@ import click
 from kg_utils.validation import MAX_HOP, MAX_K
 from kg_utils.vector_backend import VectorStoreNotFoundError
 
-from vaultkg.module import MAX_LIMIT, VaultKG
+from vaultkg.add import FAILURES, add_sources
+from vaultkg.module import DEFAULT_RAW_DIR, MAX_LIMIT, VaultKG, load_config
 
 
 def _open(vault: str) -> VaultKG:
@@ -119,6 +120,55 @@ def build(vault: str, exclude: tuple[str, ...], no_index: bool, full: bool, wipe
     click.echo(str(stats))
     if stale:
         click.echo("removed the stale vector index; run `vaultkg build` to rebuild it")
+
+
+@cli.command()
+@vault_option
+@click.argument("paths", nargs=-1, required=True, type=click.Path(path_type=Path))
+@click.option(
+    "--kind",
+    required=True,
+    help="Sub-folder of the sources folder, e.g. articles, documents, private.",
+)
+@click.option("--prefix", default="", help="Prepended to every slug, to separate same-named files.")
+@click.option("--no-copy", is_flag=True, help="Do not copy the originals to <kind>/files/.")
+def add(vault: str, paths: tuple[Path, ...], kind: str, prefix: str, no_copy: bool) -> None:
+    """Convert sources into the vault's sources folder with provenance.
+
+    Each file becomes <raw_dir>/<KIND>/<slug>.md (raw_dir from
+    .vaultkg/config.yaml, default RAW) with frontmatter recording its source
+    path, SHA-256, converter and version, and when it was added; the original
+    is copied to <KIND>/files/. Folders are walked recursively. A file already
+    added with the same content is skipped; a different file under a taken
+    name is an error (use --prefix). Never touches the graph: run
+    `vaultkg build` afterwards. Exits 1 on any collision or failed conversion.
+    """
+    config = load_config(vault)
+    try:
+        results = add_sources(
+            Path(vault),
+            list(paths),
+            kind=kind,
+            raw_dir=config.get("raw_dir", DEFAULT_RAW_DIR),
+            prefix=prefix,
+            copy=not no_copy,
+        )
+    except (ValueError, FileNotFoundError) as exc:
+        raise click.UsageError(str(exc)) from exc
+    for r in results:
+        where = r.note or ""
+        click.echo(
+            f"{r.status:<11} {r.source.name}"
+            + (f" -> {where}" if where else "")
+            + (f"  ({r.reason})" if r.reason and r.status != "identical" else "")
+        )
+    counts = {
+        s: sum(1 for r in results if r.status == s)
+        for s in ("added", "identical", "unsupported", "collision", "failed")
+    }
+    click.echo(", ".join(f"{n} {s}" for s, n in counts.items() if n) or "nothing to add")
+    if any(r.status in FAILURES for r in results):
+        raise SystemExit(1)
 
 
 @cli.command()

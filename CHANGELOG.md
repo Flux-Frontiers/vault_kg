@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`vaultkg add PATH... --kind KIND`** converts source documents into
+  `<raw_dir>/<KIND>/<slug>.md` with provenance frontmatter (source path,
+  SHA-256, converter and version, when added, title, word count) through the
+  SDK's converters: `pymupdf4llm` for PDF, `anydoc` for office formats,
+  `pandoc` for `.tex` and `.html`, Markdown and text as they are. The
+  original is copied to `<KIND>/files/` (`--no-copy` to skip). A file added
+  again with the same content is `identical`; a different file under a taken
+  name, or a differing original copy, is a `collision` and nothing is
+  written; `--prefix` separates them. Exits 1 on any collision or failed
+  conversion. Never touches the graph. New `ingest` extra. Sweep items 48 and
+  79.
+- **`raw_dir` config key** in `.vaultkg/config.yaml`: the vault-relative
+  folder `vaultkg add` writes into (default `RAW`); a path outside the vault
+  is rejected.
+
 ## [0.4.0] - 2026-10-14
 
 ### Changed

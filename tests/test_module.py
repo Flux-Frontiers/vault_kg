@@ -343,7 +343,7 @@ def test_every_entry_point_sees_the_config(vault: Path) -> None:
     ("text", "message"),
     [
         ("- projects\n", "expected a mapping"),
-        ("exclude: [projects]\nraw_dir: RAW\n", "unknown keys"),
+        ("exclude: [projects]\ncolor: blue\n", "unknown keys"),
         ("exclude: projects\n", "list of non-empty strings"),
         ("exclude: ['']\n", "list of non-empty strings"),
     ],

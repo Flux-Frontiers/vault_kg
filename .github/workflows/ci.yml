@@ -116,13 +116,14 @@ jobs:
             libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
             libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libdbus-1-3
 
-      # The viz and viz3d extras, so the render tests run rather than skip.
+      # The viz, viz3d and ingest extras, so the render and `vaultkg add` PDF
+      # tests run rather than skip.
       # No semantic extra: the suite embeds with a hashing stub
       # (tests/conftest.py) into a real sqlite-vec index, which the dev group
       # installs, so query and pack run without a model download. A core-only
       # install is proven by the Installed CLI job below.
       - name: Install dependencies
-        run: poetry install --no-interaction --with dev --extras "viz viz3d"
+        run: poetry install --no-interaction --with dev --extras "viz viz3d ingest"
 
       # importorskip turns a missing package into a skip; here that would be
       # a silent pass, so check every package the gated tests need first.
@@ -130,7 +131,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          poetry run python -c "import pyvis, pyvista, pyvistaqt, PyQt5.QtWidgets, quiltwright; print('viz and viz3d extras import')"
+          poetry run python -c "import pyvis, pyvista, pyvistaqt, PyQt5.QtWidgets, quiltwright, pymupdf4llm; print('viz, viz3d and ingest extras import')"
 
       # --cov activates the fail_under gate in [tool.coverage.report]; it is
       # not repeated here, so there is one number to keep in sync. Any skip
