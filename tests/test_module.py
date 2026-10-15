@@ -358,6 +358,8 @@ def test_config_rejects_bad_files(vault: Path, text: str, message: str) -> None:
 
 
 def test_cli_build_syncs_by_default(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The stub embedder stands in for the semantic extra, which CI does not install.
+    monkeypatch.setattr("vaultkg.cli._missing_semantic", lambda: [])
     monkeypatch.setattr(
         kg_utils.pipeline, "SentenceTransformerEmbedder", lambda *_a: HashEmbedder()
     )
