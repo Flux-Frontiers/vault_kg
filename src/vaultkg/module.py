@@ -36,19 +36,25 @@ _CODE_GRAPH_KEYS = frozenset(
 #: Build settings stored in the vault, so every entry point (CLI, MCP server,
 #: KGRAG adapter) builds with the same excludes.
 CONFIG_FILE = Path(".vaultkg") / "config.yaml"
-_CONFIG_KEYS = frozenset({"exclude"})
+_CONFIG_KEYS = frozenset({"exclude", "raw_dir"})
+#: Default folder for ``vaultkg add`` sources.
+DEFAULT_RAW_DIR = "RAW"
 
 
 def load_config(repo_root: str | Path) -> dict[str, Any]:
     """Read ``<vault>/.vaultkg/config.yaml``.
 
-    The file is optional. Its only key is ``exclude``: a list of folder names
-    or glob patterns, the same values ``vaultkg build --exclude`` takes.
+    The file is optional. ``exclude`` is a list of folder names or glob
+    patterns, the same values ``vaultkg build --exclude`` takes. ``raw_dir``
+    is the vault-relative folder ``vaultkg add`` writes sources into
+    (default :data:`DEFAULT_RAW_DIR`).
 
     :param repo_root: Vault root.
-    :return: ``{"exclude": [...]}``, empty when the file is absent.
-    :raises ValueError: The file is not a mapping, has an unknown key, or
-        ``exclude`` is not a list of non-empty strings.
+    :return: ``{"exclude": [...]}`` plus ``"raw_dir"`` when set; empty when
+        the file is absent.
+    :raises ValueError: The file is not a mapping, has an unknown key,
+        ``exclude`` is not a list of non-empty strings, or ``raw_dir`` is not
+        a relative folder inside the vault.
     """
     path = Path(repo_root) / CONFIG_FILE
     if not path.is_file():
@@ -62,7 +68,14 @@ def load_config(repo_root: str | Path) -> dict[str, Any]:
     exclude = data.get("exclude") or []
     if not isinstance(exclude, list) or not all(isinstance(x, str) and x for x in exclude):
         raise ValueError(f"{path}: exclude must be a list of non-empty strings")
-    return {"exclude": exclude}
+    out: dict[str, Any] = {"exclude": exclude}
+    if "raw_dir" in data:
+        raw_dir = data["raw_dir"]
+        parts = Path(raw_dir).parts if isinstance(raw_dir, str) else ()
+        if not parts or Path(raw_dir).is_absolute() or ".." in parts:
+            raise ValueError(f"{path}: raw_dir must be a relative folder inside the vault")
+        out["raw_dir"] = raw_dir
+    return out
 
 
 class VaultKG(KGModule):

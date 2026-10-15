@@ -40,6 +40,39 @@ Parse the vault into a graph and a vector index, in `<vault>/.vaultkg/`.
 vaultkg build --vault ~/brain --exclude templates --exclude raw
 ```
 
+### `vaultkg add PATH...`
+
+Convert source documents into the vault's sources folder, each with
+provenance frontmatter, ready for an agent or a person to write notes from.
+Needs the `ingest` extra (`pip install "vault-kg[ingest]"`).
+
+Each file becomes `<raw_dir>/<KIND>/<slug>.md`, where `raw_dir` comes from
+`.vaultkg/config.yaml` (default `RAW`). The frontmatter records the source
+path (relative to the folder you named), its SHA-256, the converter and its
+version, when it was added, the title, and a word count; the original is
+copied to `<KIND>/files/`. PDF converts with `pymupdf4llm`, office formats
+with `anydoc`, `.tex` and `.html` with `pandoc` (if installed); Markdown and
+text are kept as they are. Folders are walked recursively; dotfiles are
+skipped.
+
+| Option | Meaning |
+|---|---|
+| `--kind KIND` | Required. Sub-folder of the sources folder, a lowercase hyphenated slug such as `articles` or `documents` |
+| `--prefix TEXT` | Prepended to every slug, to keep two different files with the same name apart |
+| `--no-copy` | Do not copy the originals |
+
+A file already added with the same content is reported `identical` and left
+alone. A different file under a taken name is a `collision`: nothing is
+written, and the command exits 1; rerun that file with `--prefix`. A file no
+converter reads is reported `unsupported`; a file that fails to convert (a
+scanned PDF, or `.tex` without pandoc) is `failed` and also exits 1. `add`
+never touches the graph: run `vaultkg build` afterwards.
+
+```bash
+vaultkg add --vault ~/brain --kind documents ~/Downloads/paper.pdf
+vaultkg add --vault ~/brain --kind articles --prefix joss- ~/papers/joss/paper.md
+```
+
 ### `vaultkg stats`
 
 Print node and edge counts as JSON: `total_nodes`, `total_edges`,

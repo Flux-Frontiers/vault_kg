@@ -66,6 +66,7 @@ nav:
       - VaultKG: api/module.md
       - Extractor: api/extractor.md
       - Parsing a note: api/parse.md
+      - Adding sources: api/add.md
       - Graph health: api/analysis.md
       - Link graph (2-D): api/viz.md
       - Vault tree (3-D): api/scene.md
