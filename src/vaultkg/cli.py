@@ -83,9 +83,20 @@ def cli() -> None:
     ),
 )
 @click.option("--no-index", is_flag=True, help="Build the graph only; skip embeddings.")
+@click.option(
+    "--full",
+    is_flag=True,
+    help="Re-embed every note instead of only the notes whose text changed.",
+)
 @click.option("--wipe/--no-wipe", default=True, show_default=True, help="Rebuild from scratch.")
-def build(vault: str, exclude: tuple[str, ...], no_index: bool, wipe: bool) -> None:
-    """Parse the vault into a graph (and a vector index)."""
+def build(vault: str, exclude: tuple[str, ...], no_index: bool, full: bool, wipe: bool) -> None:
+    """Parse the vault into a graph (and a vector index).
+
+    The graph is always rebuilt from the notes on disk. By default only the
+    notes whose index text changed are re-embedded (the first build of a
+    vault, or the first after a ``--full`` build, embeds everything once).
+    ``--full`` re-embeds every note; ``--no-wipe`` also takes the full path.
+    """
     # Checked up front: the index is built last, after the whole graph.
     if not no_index and (missing := _missing_semantic()):
         raise click.UsageError(
@@ -99,9 +110,12 @@ def build(vault: str, exclude: tuple[str, ...], no_index: bool, wipe: bool) -> N
             # --no-wipe as well, and reports what went.
             stale = kg.drop_index()
             stats = kg.build_graph(wipe=wipe)
-        else:
+        elif full or not wipe:
             stale = []
             stats = kg.build(wipe=wipe)
+        else:
+            stale = []
+            stats = kg.sync()
     click.echo(str(stats))
     if stale:
         click.echo("removed the stale vector index; run `vaultkg build` to rebuild it")

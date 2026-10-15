@@ -87,8 +87,10 @@ path, with or without `.md`. `--vault` defaults to the current directory.
 
 ## Keep the graph current
 
-`build` rebuilds the whole graph from the notes on disk; there's no
-incremental update. Run it again after you edit the vault.
+`build` rebuilds the whole graph from the notes on disk, then re-embeds only
+the notes and sections whose text changed, so a rebuild after a small edit
+is quick. The first build of a vault embeds everything once. `--full`
+re-embeds every note. Run `build` again after you edit the vault.
 
 - **Store excludes in the vault.** List them in `.vaultkg/config.yaml`, and
   every build uses them: the CLI, the MCP server and the KGRAG adapter alike.

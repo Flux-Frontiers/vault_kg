@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`vaultkg build` re-embeds only what changed.** It now calls the SDK's
+  `KGModule.sync()` (kgmodule-utils 0.27.0): the graph is still rebuilt from
+  the notes on disk, but only notes and sections whose index text is new or
+  changed are embedded, and vectors of deleted notes are removed. The first
+  build of a vault embeds everything once. `--full` re-embeds every note, the
+  previous behavior; `--no-wipe` also takes that path. Sweep item 79.
+- **`kgmodule-utils` floor raised to `>=0.27.0`** in core and every extra.
+
 ## [0.3.0] - 2026-10-14
 
 ### Added
