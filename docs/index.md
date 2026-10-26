@@ -30,7 +30,7 @@ built on [kgmodule-utils](https://github.com/Flux-Frontiers/KG_utils).
 - **See it.** `vaultkg viz` draws the link graph as an interactive page;
   `vaultkg quilt` and `vaultkg viz3d` grow the vault as a 3-D tree, for the
   screen or a Looking Glass display. See [Seeing the vault](visualization.md).
-- **Give it to an agent.** `vaultkg-mcp` serves the vault to Claude Code,
+- **Give it to an agent.** `vaultkg mcp` serves the vault to Claude Code,
   Cursor or any MCP client, and KGRAG federates it with code, documents and
   other knowledge graphs. See [MCP server](mcp.md) and
   [Using VaultKG from KGRAG](kgrag.md).

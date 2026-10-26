@@ -201,13 +201,17 @@ button. Needs the `viz3d` extra.
 
 ## The MCP server
 
-### `vaultkg-mcp`
+### `vaultkg mcp`
 
-A separate command that serves one built vault to MCP clients. See
-[MCP server](mcp.md).
+Serves one built vault to MCP clients. `vaultkg-mcp` is the same command
+under its older name. See [MCP server](mcp.md).
 
 | Option | Meaning |
 |---|---|
-| `--vault DIRECTORY` | Vault root. Default `.`; `--repo` is an alias |
+| `--repo DIRECTORY` | Vault root. Default `.`. `vaultkg-mcp` also takes `--vault` |
 | `--db PATH` | Graph database. Default `<vault>/.vaultkg/graph.sqlite` |
-| `--transport [stdio\|sse]` | MCP transport. Default `stdio` |
+| `--vectors PATH` | Vector index. Default `<vault>/.vaultkg/vectors.sqlite` |
+| `--model NAME` | Embedding model. Default the one the vault was built with |
+| `--transport [stdio\|streamable-http]` | MCP transport. Default `stdio` |
+| `--host`, `--port` | Bind address for `streamable-http`. Default `127.0.0.1:8765` |
+| `--manifest` | Print the tools as JSON and exit, without opening the graph |

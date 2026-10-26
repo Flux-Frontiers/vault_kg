@@ -176,12 +176,13 @@ class VaultKG(KGModule):
     def stats(self) -> dict[str, Any]:
         """Store counts, plus note/link figures a vault owner cares about.
 
-        :return: ``total_nodes``, ``total_edges``, ``node_counts``,
-            ``edge_counts``, ``meaningful_nodes`` (everything but unresolved
-            targets), plus ``notes``, ``headings``, ``tags``, ``unresolved``.
+        :return: The fleet stats shape (``kind``, ``nodes``, ``edges``;
+            :mod:`kg_utils.stats`), ``meaningful_nodes`` (everything but
+            unresolved targets), plus ``notes``, ``headings``, ``tags``,
+            ``unresolved``.
         """
         s = {k: v for k, v in super().stats().items() if k not in _CODE_GRAPH_KEYS}
-        nc = s.get("node_counts", {})
+        nc = s["nodes"]["by_kind"]
         s["notes"] = nc.get("note", 0)
         s["headings"] = nc.get("heading", 0)
         s["tags"] = nc.get("tag", 0)
@@ -198,6 +199,30 @@ class VaultKG(KGModule):
         :raises ValueError: On an empty or over-long id.
         """
         return self.store.node(normalize_node_id(node_id))
+
+    def neighbors(
+        self,
+        node_id: str,
+        *,
+        rels: tuple[str, ...] | list[str] | None = None,
+        direction: str = "both",
+        limit: int = 50,
+    ) -> dict[str, Any] | None:
+        """A node's one-hop neighborhood, by id or by the note's vault path.
+
+        :meth:`kg_utils.pipeline.KGModule.neighbors`, with the id normalized
+        as :meth:`node` does.
+
+        :param node_id: Node id, or a bare vault path such as ``wiki/X``.
+        :param rels: Relation types to follow, or ``None`` for all of them.
+        :param direction: ``"out"``, ``"in"`` or ``"both"``.
+        :param limit: Most edges, 1-500.
+        :return: ``{"node", "edges", "nodes"}``, or ``None`` if there is no such node.
+        :raises ValueError: On an empty or over-long id, or a bad argument.
+        """
+        return super().neighbors(
+            normalize_node_id(node_id), rels=rels, direction=direction, limit=limit
+        )
 
     def links(
         self, node_id: str, *, direction: str = "out", rel: str = "", limit: int = 50

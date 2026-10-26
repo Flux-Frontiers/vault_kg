@@ -14,11 +14,11 @@ command the site does not admit exists.
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import click
 import pytest
+from kg_utils.mcp import manifest
 
 from vaultkg import mcp_server
 from vaultkg.cli import cli
@@ -43,6 +43,11 @@ def _commands(group: click.Group, prefix: str) -> list[str]:
     return names
 
 
+def _tools() -> list[str]:
+    """The MCP server's tool names, from its manifest (no graph needed)."""
+    return [t["name"] for t in manifest(mcp_server.build_server(ROOT))["tools"]]
+
+
 @pytest.fixture(scope="module")
 def site_text() -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in _pages())
@@ -51,7 +56,7 @@ def site_text() -> str:
 def test_there_are_commands_and_tools_to_check() -> None:
     """Guard the guard: an empty registry would make every assertion below pass."""
     assert len(_commands(cli, "vaultkg")) > 10
-    assert len(asyncio.run(mcp_server.mcp.list_tools())) >= 9
+    assert len(_tools()) >= 10
 
 
 def test_every_command_appears_on_the_site(site_text: str) -> None:
@@ -63,7 +68,7 @@ def test_every_command_appears_on_the_site(site_text: str) -> None:
 
 
 def test_every_mcp_tool_appears_on_the_site(site_text: str) -> None:
-    tools = [t.name for t in asyncio.run(mcp_server.mcp.list_tools())]
+    tools = _tools()
     missing = [name for name in tools if f"`{name}(" not in site_text]
     assert not missing, f"MCP tools not documented in docs/: {', '.join(missing)}"
 

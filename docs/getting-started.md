@@ -22,7 +22,7 @@ Pick the extras for what you need:
 | Extra | Adds | Needed by |
 |---|---|---|
 | (none) | Graph build, analysis, links, snapshots, the MCP server | everything not listed below |
-| `semantic` | PyTorch, sentence-transformers and the sqlite-vec index | a full `build`, `query`, `pack`, and the `query_vault` / `pack_vault` MCP tools |
+| `semantic` | PyTorch, sentence-transformers and the sqlite-vec index | a full `build`, `query`, `pack`, and the `query` / `pack` MCP tools |
 | `viz` | pyvis, through `kgmodule-utils[viz]` | `vaultkg viz` |
 | `viz3d` | PyVista, PyQt5, pyvistaqt and quiltwright | `vaultkg quilt`, `vaultkg viz3d` |
 

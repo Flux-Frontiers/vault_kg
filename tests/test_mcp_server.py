@@ -1,32 +1,49 @@
-"""The MCP server, driven through ``mcp.shared.memory``'s in-process transport.
+"""The MCP server on the fleet's shared base, ``kg_utils.mcp``.
 
-Every tool is called over the real protocol against a small built vault, not
-by calling the underlying ``VaultKG`` method, and the lifespan hook is
-checked to close the graph when the server stops (FLEET_STANDARDS, resource
-cleanup).
+Driven through ``mcp.shared.memory``'s in-process transport: every tool is
+called over the real protocol against a small built vault, not by calling the
+underlying ``VaultKG`` method. The server opens its own ``VaultKG`` per
+session; these tests give it the hash embedder so no model is downloaded.
+
+Then the surface step 2 of kgrag_priv's MCP centralization plan promises: the
+five canonical tools first, under the names every fleet server shares, then
+VaultKG's extras; ``stats`` in the fleet shape; the manifest answers without a
+graph; other ``vaultkg`` commands do not import ``mcp``; an unbuilt vault is
+refused; ``vaultkg-mcp --vault`` still works; and a real stdio subprocess
+serves.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import anyio
 import pytest
+from click.testing import CliRunner
+from kg_utils.mcp import CANONICAL_TOOLS, manifest
+from kg_utils.stats import stats_problems
+from mcp import StdioServerParameters
 from mcp.client.session import ClientSession
+from mcp.client.stdio import stdio_client
 from mcp.shared.memory import create_connected_server_and_client_session
 from mcp.types import CallToolResult
 
+import vaultkg
 from tests.conftest import HashEmbedder
 from vaultkg import mcp_server
+from vaultkg.cli import cli
 from vaultkg.module import VaultKG
 from vaultkg.snapshots import SnapshotManager
 
-pytestmark = pytest.mark.anyio
-
 RETRIEVAL = "note:wiki/concepts/Retrieval.md"
 LOST = "note:wiki/sources/Lost in the Middle.md"
+_SRC = str(Path(vaultkg.__file__).resolve().parents[1])
 
 
 @pytest.fixture
@@ -34,26 +51,30 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+class _HashVaultKG(VaultKG):
+    """VaultKG with the hash embedder, as the server opens it in these tests."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        self._embedder = HashEmbedder()
+
+
 @pytest.fixture
-def built(vault: Path) -> VaultKG:
+def built(vault: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     kg = VaultKG(vault)
     kg._embedder = HashEmbedder()
     kg.build(wipe=True)
-    return kg
+    kg.close()
+    monkeypatch.setattr(mcp_server, "VaultKG", _HashVaultKG)
+    return vault
 
 
 @asynccontextmanager
-async def _session(kg: VaultKG) -> AsyncIterator[ClientSession]:
-    mcp_server._kg = kg
-    mcp_server._snapshot_mgr = SnapshotManager(
-        kg.repo_root / VaultKG._default_dir / "snapshots", db_path=kg.db_path
-    )
-    try:
-        async with create_connected_server_and_client_session(mcp_server.mcp) as session:
-            yield session
-    finally:
-        mcp_server._kg = None
-        mcp_server._snapshot_mgr = None
+async def _session(vault: Path) -> AsyncIterator[ClientSession]:
+    async with create_connected_server_and_client_session(
+        mcp_server.build_server(vault)
+    ) as session:
+        yield session
 
 
 def _text(result: CallToolResult) -> str:
@@ -72,49 +93,63 @@ async def _error(session: ClientSession, tool: str, **args: object) -> str:
     return _text(result)
 
 
-async def test_every_tool_is_listed(built: VaultKG) -> None:
+@pytest.mark.anyio
+async def test_canonical_tools_then_the_extras(built: Path) -> None:
     async with _session(built) as s:
-        names = {t.name for t in (await s.list_tools()).tools}
-    assert names == {
-        "graph_stats",
-        "query_vault",
-        "pack_vault",
-        "get_node",
+        names = [t.name for t in (await s.list_tools()).tools]
+    assert names == [
+        *CANONICAL_TOOLS,
         "note_links",
         "analyze_vault",
         "snapshot_list",
         "snapshot_show",
         "snapshot_diff",
-    }
+    ]
 
 
-async def test_graph_stats(built: VaultKG) -> None:
+@pytest.mark.anyio
+async def test_stats(built: Path) -> None:
     async with _session(built) as s:
-        stats = json.loads(await _call(s, "graph_stats"))
+        stats = json.loads(await _call(s, "stats"))
+    assert stats_problems(stats) == []
+    assert stats["kind"] == "vault"
     assert stats["notes"] == 8
     assert stats["unresolved"] == 2
     assert "docstring_coverage" not in stats
 
 
-async def test_query_and_pack(built: VaultKG) -> None:
+@pytest.mark.anyio
+async def test_query_and_pack(built: Path) -> None:
     async with _session(built) as s:
-        res = json.loads(await _call(s, "query_vault", q="models ignore the middle", k=2))
-        pack = await _call(s, "pack_vault", q="models ignore the middle", k=2, hop=0)
+        res = json.loads(await _call(s, "query", q="models ignore the middle", k=2))
+        pack = await _call(s, "pack", q="models ignore the middle", k=2, hop=0)
     assert LOST in [n["id"] for n in res["nodes"]]
     assert "Models ignore the middle" in pack
 
 
-async def test_get_node_by_id_and_by_path(built: VaultKG) -> None:
+@pytest.mark.anyio
+async def test_get_node_by_id_and_by_path(built: Path) -> None:
     async with _session(built) as s:
         by_id = json.loads(await _call(s, "get_node", node_id=RETRIEVAL))
         by_path = json.loads(await _call(s, "get_node", node_id="`wiki/concepts/Retrieval`"))
-        missing = json.loads(await _call(s, "get_node", node_id="no/such/note.md"))
+        missing = await _error(s, "get_node", node_id="no/such/note.md")
     assert by_id["id"] == by_path["id"] == RETRIEVAL
     assert by_id["metadata"]["aliases"] == ["RAG"]
-    assert missing is None
+    assert "no node with id" in missing
 
 
-async def test_note_links_out_and_backlinks(built: VaultKG) -> None:
+@pytest.mark.anyio
+async def test_neighbors_by_path(built: Path) -> None:
+    async with _session(built) as s:
+        near = json.loads(
+            await _call(s, "neighbors", node_id="wiki/concepts/Retrieval", direction="out")
+        )
+    assert near["node"]["id"] == RETRIEVAL
+    assert "note:wiki/concepts/Search.md" in [n["id"] for n in near["nodes"]]
+
+
+@pytest.mark.anyio
+async def test_note_links_out_and_backlinks(built: Path) -> None:
     async with _session(built) as s:
         out = json.loads(await _call(s, "note_links", node_id=RETRIEVAL, rel="extends"))
         back = json.loads(await _call(s, "note_links", node_id=LOST, direction="in"))
@@ -122,18 +157,22 @@ async def test_note_links_out_and_backlinks(built: VaultKG) -> None:
     assert any(r["rel"] == "SUPPORTS" for r in back)
 
 
-async def test_analyze_vault(built: VaultKG) -> None:
+@pytest.mark.anyio
+async def test_analyze_vault(built: Path) -> None:
     async with _session(built) as s:
         report = await _call(s, "analyze_vault")
     assert report.startswith("# VaultKG Analysis")
+    # The counts tables read the stats shape; on the old keys they were empty.
+    assert "| note | 8 |" in report
 
 
-async def test_snapshot_tools(built: VaultKG) -> None:
-    mgr = SnapshotManager(
-        built.repo_root / VaultKG._default_dir / "snapshots", db_path=built.db_path
-    )
+@pytest.mark.anyio
+async def test_snapshot_tools(built: Path) -> None:
+    kg = VaultKG(built)
+    mgr = SnapshotManager(kg.repo_root / VaultKG._default_dir / "snapshots", db_path=kg.db_path)
     for key in ("v0.1.0", "v0.1.1"):
-        mgr.save_snapshot(mgr.capture(graph_stats_dict=built.stats(), key=key), force=True)
+        mgr.save_snapshot(mgr.capture(graph_stats_dict=kg.stats(), key=key), force=True)
+    kg.close()
     async with _session(built) as s:
         listed = json.loads(await _call(s, "snapshot_list", limit=5))
         latest = json.loads(await _call(s, "snapshot_show"))
@@ -148,70 +187,121 @@ async def test_snapshot_tools(built: VaultKG) -> None:
 @pytest.mark.parametrize(
     ("tool", "args", "message"),
     [
-        ("query_vault", {"q": "x", "k": 0}, "k must be between"),
-        ("query_vault", {"q": "x", "hop": 6}, "hop must be between"),
-        ("query_vault", {"q": "   "}, "q must not be empty"),
-        ("pack_vault", {"q": "x", "max_nodes": 501}, "max_nodes must be between"),
+        ("query", {"q": "x", "k": 0}, "k must be between"),
+        ("query", {"q": "x", "hop": 6}, "hop must be between"),
+        ("query", {"q": "   "}, "q must not be empty"),
+        ("pack", {"q": "x", "max_nodes": 501}, "max_nodes must be between"),
         ("get_node", {"node_id": " "}, "node_id must not be empty"),
         ("get_node", {"node_id": "x" * 501}, "at most 500"),
         ("note_links", {"node_id": RETRIEVAL, "direction": "up"}, "direction must be"),
         ("note_links", {"node_id": RETRIEVAL, "limit": 0}, "limit must be between"),
+        ("neighbors", {"node_id": RETRIEVAL, "limit": 0}, "limit must be between"),
         ("snapshot_list", {"limit": 501}, "limit must be between"),
         ("snapshot_show", {"key": "../../etc/passwd"}, "invalid snapshot key"),
         ("snapshot_diff", {"key_a": "a/b", "key_b": "v1"}, "invalid snapshot key"),
     ],
 )
+@pytest.mark.anyio
 async def test_bad_arguments_are_rejected(
-    built: VaultKG, tool: str, args: dict[str, object], message: str
+    built: Path, tool: str, args: dict[str, object], message: str
 ) -> None:
     async with _session(built) as s:
         assert message in await _error(s, tool, **args)
 
 
-async def test_lifespan_closes_kg_on_shutdown(built: VaultKG) -> None:
+@pytest.mark.anyio
+async def test_the_session_opens_the_graph_and_closes_it(
+    built: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    closed: list[VaultKG] = []
+    real_close = VaultKG.close
+
+    def counting_close(self: VaultKG) -> None:
+        closed.append(self)
+        real_close(self)
+
+    monkeypatch.setattr(VaultKG, "close", counting_close)
     async with _session(built) as s:
-        await _call(s, "graph_stats")
-    # The server task has unwound by the time the block exits, so the
-    # lifespan's `finally: kg.close()` has already run.
-    assert built._store is not None
-    assert built._store._con is None
+        await _call(s, "stats")
+        assert closed == [], "the graph stays open for the whole session"
+    assert len(closed) == 1
+    assert closed[0]._store is not None and closed[0]._store._con is None
 
 
-async def test_lifespan_is_a_noop_without_a_kg() -> None:
-    assert mcp_server._kg is None
-    async with create_connected_server_and_client_session(mcp_server.mcp):
-        pass
+def test_an_unbuilt_vault_is_refused_not_served_empty(vault: Path) -> None:
+    async def run() -> None:
+        async with create_connected_server_and_client_session(mcp_server.build_server(vault)):
+            pass
 
-
-async def test_tools_refuse_before_main_sets_the_kg() -> None:
-    async with create_connected_server_and_client_session(mcp_server.mcp) as s:
-        assert "vaultkg-mcp --vault" in await _error(s, "graph_stats")
-        assert "vaultkg-mcp --vault" in await _error(s, "snapshot_list")
-
-
-def test_parse_args_accepts_repo_alias() -> None:
-    args = mcp_server._parse_args(["--repo", "/tmp/v", "--transport", "sse"])
-    assert (args.vault, args.transport, args.db) == ("/tmp/v", "sse", None)
-
-
-def test_main_refuses_an_unbuilt_vault(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mcp_server.mcp, "run", lambda transport: None)
-    with pytest.raises(SystemExit, match="run `vaultkg build` first"):
-        mcp_server.main(["--vault", str(vault)])
-    assert mcp_server._kg is None
+    with pytest.raises(BaseException) as info:
+        anyio.run(run)
+    assert "no graph at" in repr(info.value) or any(
+        "no graph at" in str(e) for e in getattr(info.value, "exceptions", ())
+    )
     assert not (vault / ".vaultkg" / "graph.sqlite").exists()
 
 
-def test_main_opens_the_vault(built: VaultKG, monkeypatch: pytest.MonkeyPatch) -> None:
-    vault = built.repo_root
-    built.close()
-    ran: list[str] = []
-    monkeypatch.setattr(mcp_server.mcp, "run", lambda transport: ran.append(transport))
-    try:
-        mcp_server.main(["--vault", str(vault)])
-        assert ran == ["stdio"]
-        assert mcp_server._kg is not None and mcp_server._kg.repo_root == vault.resolve()
-        assert mcp_server._snapshot_mgr is not None
-    finally:
-        mcp_server._kg = None
-        mcp_server._snapshot_mgr = None
+def test_manifest_answers_without_a_graph_and_creates_nothing(vault: Path) -> None:
+    result = CliRunner().invoke(cli, ["mcp", "--repo", str(vault), "--manifest"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["canonical"] == list(CANONICAL_TOOLS)
+    assert manifest(mcp_server.build_server(vault))["kind"] == "vault"
+    assert not (vault / ".vaultkg").exists()
+
+
+def test_vaultkg_mcp_takes_vault_for_repo(vault: Path) -> None:
+    """``vaultkg-mcp --vault`` is the same command as ``vaultkg mcp --repo``."""
+    via_cli = CliRunner().invoke(cli, ["mcp", "--repo", str(vault), "--manifest"]).output
+    via_script = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from vaultkg.mcp_server import main; main()",
+            "--vault",
+            str(vault),
+            "--manifest",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert json.loads(via_cli) == json.loads(via_script)
+
+
+def test_sse_is_gone(vault: Path) -> None:
+    result = CliRunner().invoke(
+        cli, ["mcp", "--repo", str(vault), "--transport", "sse", "--manifest"]
+    )
+    assert result.exit_code == 2
+
+
+def test_other_commands_do_not_import_mcp() -> None:
+    out = subprocess.run(
+        [sys.executable, "-c", "import sys, vaultkg.cli; print('mcp' in sys.modules)"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert out == "False"
+
+
+def test_stdio_subprocess_serves(built: Path) -> None:
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-c", "from vaultkg.mcp_server import main; main()", "--vault", str(built)],
+        env={**os.environ, "PYTHONPATH": _SRC},
+    )
+
+    async def run():
+        with open(built / "stderr.log", "w", encoding="utf-8") as errlog:
+            async with stdio_client(params, errlog=errlog) as (read, write):
+                async with ClientSession(read, write) as client:
+                    init = await client.initialize()
+                    tools = await client.list_tools()
+                    stats = await client.call_tool("stats", {})
+                    return init, tools, stats
+
+    init, tools, stats = anyio.run(run)
+    assert (init.serverInfo.name, init.serverInfo.version) == ("vaultkg", vaultkg.__version__)
+    assert [t.name for t in tools.tools][: len(CANONICAL_TOOLS)] == list(CANONICAL_TOOLS)
+    assert stats.structuredContent["notes"] == 8

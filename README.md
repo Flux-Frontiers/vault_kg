@@ -297,15 +297,16 @@ KGRAG modules.
 
 ## MCP server
 
-`vaultkg-mcp` serves one vault to any MCP client (Claude Code, Cursor, GitHub
-Copilot, Claude Desktop). To serve a vault, add it to the client's `.mcp.json`:
+`vaultkg mcp` serves one vault to any MCP client (Claude Code, Cursor, GitHub
+Copilot, Claude Desktop). `vaultkg-mcp` is the same command under its older
+name. To serve a vault, add it to the client's `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "vaultkg": {
-      "command": "vaultkg-mcp",
-      "args": ["--vault", "/path/to/vault"]
+      "command": "vaultkg",
+      "args": ["mcp", "--repo", "/path/to/vault"]
     }
   }
 }
@@ -313,26 +314,24 @@ Copilot, Claude Desktop). To serve a vault, add it to the client's `.mcp.json`:
 
 | Tool | What it returns |
 |---|---|
-| `graph_stats` | Note, heading, tag and unresolved-link counts |
-| `query_vault(q, k, hop)` | Semantic hits, expanded along their links, as JSON |
-| `pack_vault(q, k, hop, max_nodes)` | The same search with note and section text, as Markdown |
+| `stats` | Nodes and edges by kind and relation, plus note, heading, tag and unresolved-link counts |
+| `query(q, k, hop, max_nodes, rels)` | Semantic hits, expanded along their links |
+| `pack(q, k, hop, max_nodes, rels)` | The same search with note and section text, as Markdown |
 | `get_node(node_id)` | One node and its metadata (title, tags, aliases, dates) |
+| `neighbors(node_id, rels, direction, limit)` | A node's edges and the nodes at their far ends |
 | `note_links(node_id, direction, rel, limit)` | Outgoing links, or backlinks with `direction="in"` |
 | `analyze_vault` | The graph-health report |
 | `snapshot_list`, `snapshot_show`, `snapshot_diff` | Saved metric snapshots |
 
 Out-of-range arguments are rejected with a message naming the range, never
-clamped: `k` 1-100, `hop` 0-5, `max_nodes` and `limit` 1-500. The server
-closes the graph when it stops.
-
-| Option | Meaning |
-|---|---|
-| `--vault DIR` | Vault root (default: the current directory). `--repo` is accepted as an alias. |
-| `--db PATH` | Graph database (default: `<vault>/.vaultkg/graph.sqlite`) |
-| `--transport {stdio,sse}` | MCP transport (default: `stdio`) |
+clamped: `k` 1-100, `hop` 0-5, `max_nodes` and `limit` 1-500. The first five
+tools are the canonical ones every fleet KG server shares (`kg_utils.mcp`);
+`vaultkg mcp --manifest` prints the full list. Options: `--repo` (the vault
+root; `vaultkg-mcp` also takes `--vault`), `--db`, `--vectors`, `--model`,
+`--transport stdio|streamable-http`, `--host`, `--port`, `--manifest`.
 
 Build the vault before you start the server. The server doesn't build it, and
-exits with an error if `<vault>/.vaultkg/graph.sqlite` doesn't exist.
+refuses to start a session if `<vault>/.vaultkg/graph.sqlite` doesn't exist.
 
 ---
 
