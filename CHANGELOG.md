@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-26
+
+### Changed
+
+- **BREAKING: the MCP server is built on `kg_utils.mcp`**, the fleet's shared
+  server base (`kgrag_priv` MCP centralization plan, step 2). Needs
+  kgmodule-utils 0.29.0: the floor is `kgmodule-utils[mcp]>=0.29.0`, and its
+  `[mcp]` extra replaces the direct `mcp` pin. Tools take the canonical names
+  every fleet KG server shares, with no aliases: `graph_stats` -> `stats`,
+  `query_vault` -> `query`, `pack_vault` -> `pack`, plus the new `neighbors`.
+  `get_node`, `note_links`, `analyze_vault` and the snapshot tools keep their
+  names. Ten tools, the canonical five first. A missing node is now a tool
+  error from `get_node`, not `null`.
+- **`vaultkg mcp`** is the standard command (`--repo`, `--db`, `--vectors`,
+  `--model`, `--transport stdio|streamable-http`, `--host`, `--port`,
+  `--manifest`). `sse` is gone. `vaultkg-mcp` stays as the same command and
+  still takes `--vault` for `--repo`, so existing configs keep working. The
+  graph is opened per session and closed after.
+- **BREAKING: `VaultKG.stats()` returns the fleet stats shape**:
+  `{"kind", "nodes": {"total", "by_kind"}, "edges": {"total", "by_rel"}}` plus
+  `meaningful_nodes`, `notes`, `headings`, `tags` and `unresolved`.
+
+### Added
+
+- **`VaultKG.neighbors()`** takes a note's vault path as well as its id, as
+  `node()` does. It backs the `neighbors` tool.
+
+### Fixed
+
+- **`stats()` and the analysis report against kgmodule-utils 0.29.0.** Its
+  `KGModule.stats()` no longer reports `node_counts`, so `notes`, `headings`,
+  `tags` and `unresolved` read 0 and the report's counts tables came out
+  empty, without a test failing for the tables. Both read the shape now.
+
 ## [0.5.0] - 2026-10-14
 
 ### Added

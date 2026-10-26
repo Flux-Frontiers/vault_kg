@@ -12,13 +12,18 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
+from kg_utils.mcp import add_mcp_command
 from kg_utils.validation import MAX_HOP, MAX_K
 from kg_utils.vector_backend import VectorStoreNotFoundError
 
 from vaultkg.add import FAILURES, add_sources
 from vaultkg.module import DEFAULT_RAW_DIR, MAX_LIMIT, VaultKG, load_config
+
+if TYPE_CHECKING:
+    from kg_utils.mcp import KGServer
 
 
 def _open(vault: str) -> VaultKG:
@@ -563,6 +568,17 @@ def snapshot_list(vault: str) -> None:
 def snapshot_diff(vault: str, a: str, b: str) -> None:
     """Compare two snapshots."""
     click.echo(json.dumps(_manager(vault).diff_snapshots(a, b), indent=2, default=str))
+
+
+def _build_server(repo: Path, db: Path | None, vectors: Path | None, model: str | None) -> KGServer:
+    from vaultkg.mcp_server import build_server  # noqa: PLC0415 -- keeps mcp out of other commands
+
+    return build_server(repo, db, vectors, model)
+
+
+#: ``vaultkg mcp``, the fleet's standard MCP command (:mod:`kg_utils.mcp`).
+#: Registering it imports neither ``mcp`` nor the server module.
+mcp_command = add_mcp_command(cli, _build_server)
 
 
 if __name__ == "__main__":

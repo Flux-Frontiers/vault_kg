@@ -245,10 +245,10 @@ def render_report(health: VaultHealth, stats: dict[str, Any], *, top: int = 15) 
         "| kind | nodes |",
         "|---|---|",
     ]
-    for k, v in sorted(stats.get("node_counts", {}).items()):
+    for k, v in sorted(stats["nodes"]["by_kind"].items()):
         out.append(f"| {'unresolved' if k == 'symbol' else k} | {v} |")
     out += ["", "| relation | edges |", "|---|---|"]
-    for k, v in sorted(stats.get("edge_counts", {}).items()):
+    for k, v in sorted(stats["edges"]["by_rel"].items()):
         out.append(f"| {k} | {v} |")
 
     out += ["", "## Hubs", "", "Most-linked notes, by distinct notes linking in.", ""]

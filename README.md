@@ -1,6 +1,6 @@
 [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![License: Elastic-2.0](https://img.shields.io/badge/License-Elastic%202.0-blue.svg)](https://www.elastic.co/licensing/elastic-license)
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/Flux-Frontiers/vault_kg/releases)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/Flux-Frontiers/vault_kg/releases)
 [![CI](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml/badge.svg)](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/ci.yml)
 [![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
 [![Docs](https://github.com/Flux-Frontiers/vault_kg/actions/workflows/docs.yml/badge.svg)](https://flux-frontiers.github.io/vault_kg/)
@@ -28,7 +28,7 @@ vault federates with code, documents and every other KG kind through KGRAG.
 covers installation, the graph, graph health, every command, the views, the
 MCP server and the API.
 
-> **Status: alpha (0.5.0).** Build, link resolution, graph-health analysis,
+> **Status: alpha (0.6.0).** Build, link resolution, graph-health analysis,
 > query and pack, snapshots, the 2-D link graph, the 3-D tree with Looking
 > Glass quilts, the `vaultkg` CLI and the `vaultkg-mcp` server work end to end,
 > and have been run against a 250-note vault. KGRAG federates a vault as kind
@@ -297,15 +297,16 @@ KGRAG modules.
 
 ## MCP server
 
-`vaultkg-mcp` serves one vault to any MCP client (Claude Code, Cursor, GitHub
-Copilot, Claude Desktop). To serve a vault, add it to the client's `.mcp.json`:
+`vaultkg mcp` serves one vault to any MCP client (Claude Code, Cursor, GitHub
+Copilot, Claude Desktop). `vaultkg-mcp` is the same command under its older
+name. To serve a vault, add it to the client's `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "vaultkg": {
-      "command": "vaultkg-mcp",
-      "args": ["--vault", "/path/to/vault"]
+      "command": "vaultkg",
+      "args": ["mcp", "--repo", "/path/to/vault"]
     }
   }
 }
@@ -313,26 +314,24 @@ Copilot, Claude Desktop). To serve a vault, add it to the client's `.mcp.json`:
 
 | Tool | What it returns |
 |---|---|
-| `graph_stats` | Note, heading, tag and unresolved-link counts |
-| `query_vault(q, k, hop)` | Semantic hits, expanded along their links, as JSON |
-| `pack_vault(q, k, hop, max_nodes)` | The same search with note and section text, as Markdown |
+| `stats` | Nodes and edges by kind and relation, plus note, heading, tag and unresolved-link counts |
+| `query(q, k, hop, max_nodes, rels)` | Semantic hits, expanded along their links |
+| `pack(q, k, hop, max_nodes, rels)` | The same search with note and section text, as Markdown |
 | `get_node(node_id)` | One node and its metadata (title, tags, aliases, dates) |
+| `neighbors(node_id, rels, direction, limit)` | A node's edges and the nodes at their far ends |
 | `note_links(node_id, direction, rel, limit)` | Outgoing links, or backlinks with `direction="in"` |
 | `analyze_vault` | The graph-health report |
 | `snapshot_list`, `snapshot_show`, `snapshot_diff` | Saved metric snapshots |
 
 Out-of-range arguments are rejected with a message naming the range, never
-clamped: `k` 1-100, `hop` 0-5, `max_nodes` and `limit` 1-500. The server
-closes the graph when it stops.
-
-| Option | Meaning |
-|---|---|
-| `--vault DIR` | Vault root (default: the current directory). `--repo` is accepted as an alias. |
-| `--db PATH` | Graph database (default: `<vault>/.vaultkg/graph.sqlite`) |
-| `--transport {stdio,sse}` | MCP transport (default: `stdio`) |
+clamped: `k` 1-100, `hop` 0-5, `max_nodes` and `limit` 1-500. The first five
+tools are the canonical ones every fleet KG server shares (`kg_utils.mcp`);
+`vaultkg mcp --manifest` prints the full list. Options: `--repo` (the vault
+root; `vaultkg-mcp` also takes `--vault`), `--db`, `--vectors`, `--model`,
+`--transport stdio|streamable-http`, `--host`, `--port`, `--manifest`.
 
 Build the vault before you start the server. The server doesn't build it, and
-exits with an error if `<vault>/.vaultkg/graph.sqlite` doesn't exist.
+refuses to start a session if `<vault>/.vaultkg/graph.sqlite` doesn't exist.
 
 ---
 
@@ -377,13 +376,13 @@ or managed service to third parties. Commercial internal use is permitted.
 
 If you use VaultKG in your research or project, please cite it:
 
-> Suchanek, E. G. (2026). *VaultKG: Obsidian Vaults as Knowledge Graphs* (Version 0.5.0) [Software]. Flux-Frontiers. https://doi.org/10.5281/zenodo.22907544
+> Suchanek, E. G. (2026). *VaultKG: Obsidian Vaults as Knowledge Graphs* (Version 0.6.0) [Software]. Flux-Frontiers. https://doi.org/10.5281/zenodo.22907544
 
 ```bibtex
 @software{suchanek_vaultkg,
   author    = {Suchanek, Eric G.},
   title     = {{VaultKG}: Obsidian Vaults as Knowledge Graphs},
-  version   = {0.5.0},
+  version   = {0.6.0},
   year      = {2026},
   publisher = {Flux-Frontiers},
   url       = {https://github.com/Flux-Frontiers/vault_kg},
