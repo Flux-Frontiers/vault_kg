@@ -198,7 +198,7 @@ def main(argv: list[str] | None = None) -> None:
     from vaultkg.cli import mcp_command  # noqa: PLC0415 -- cli imports this module lazily
 
     args = sys.argv[1:] if argv is None else argv
-    args = ["--repo" if a == "--vault" else a for a in args]
+    args = ["--repo" + a[len("--vault") :] if a.split("=")[0] == "--vault" else a for a in args]
     mcp_command.main(args=args, prog_name="vaultkg-mcp")
 
 
