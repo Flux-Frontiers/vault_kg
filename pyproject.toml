@@ -73,11 +73,9 @@ dependencies = [
     # not by deleting files here), build_graph_html(edge_labels=) and per-leaf
     # sizes in leaf_glyphs(). 0.23.0 added the query()/pack() argument checks
     # the CLI and MCP server rely on.
-    "kgmodule-utils>=0.27.0",
-    # The server is kg_utils.mcp's now, which needs kgmodule-utils 0.29.0 (on
-    # the local wheel until the fleet lap ends). At that release this line goes
-    # and the floor above becomes kgmodule-utils[mcp]>=0.29.0.
-    "mcp>=1.3.0,<2",
+    # 0.29.0: the MCP server is kg_utils.mcp's ([mcp] brings mcp itself),
+    # VaultKG.stats() is the fleet stats shape, and LanceDB is gone.
+    "kgmodule-utils[mcp]>=0.29.0",
     "pyyaml>=6.0",
 ]
 
