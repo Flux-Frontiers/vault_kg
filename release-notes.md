@@ -1,43 +1,43 @@
-# Release Notes -- v0.5.0
+# Release Notes -- v0.6.0
 
-> Released: 2026-10-14
+> Released: 2026-10-26
 
-VaultKG can now bring source documents into a vault. `vaultkg add` converts a
-PDF, an office document, a LaTeX or HTML file, or a Markdown or text file into
-a note under the vault's sources folder, with a record of exactly where it
-came from, ready for a person or an agent to write wiki pages from.
+VaultKG's MCP server now runs on the fleet's shared base, `kg_utils.mcp`, so
+its first five tools have the same names on every fleet KG server: `stats`,
+`query`, `pack`, `get_node` and `neighbors`. `note_links`, `analyze_vault` and
+the snapshot tools keep their names. Existing `vaultkg-mcp --vault` configs
+keep working.
 
 ## What changed
 
-**`vaultkg add`.** Give it files or folders and a `--kind` (for example
-`articles` or `documents`). Each file becomes `RAW/<kind>/<slug>.md`, with
-frontmatter that records the source's path, its SHA-256, the converter and
-version that produced the text, when it was added, its title and its word
-count. The original is copied beside it under `files/`. Conversion uses the
-fleet's shared converters: `pymupdf4llm` for PDF, `anydoc` for office
-formats, and `pandoc`, when installed, for LaTeX and HTML.
+**Canonical tool names.** `graph_stats` is `stats`, `query_vault` is `query`
+and `pack_vault` is `pack`, with no aliases. The new `neighbors` tool walks a
+node's links in either direction and, like `get_node`, takes a note's vault
+path as well as its id. A missing node is now a tool error from `get_node`
+rather than `null`.
 
-**Collisions are decided by content.** Adding the same file again does
-nothing. Adding a different file under a name that is already taken writes
-nothing and exits with an error; `--prefix` keeps the two apart. Notes made
-before this release, which carry no recorded hash, are matched through their
-copied original. A scanned PDF or a file pandoc cannot read is reported as
-failed, never written as an empty note.
+**One command, standard flags.** `vaultkg mcp` takes the fleet's `--repo`,
+`--db`, `--vectors`, `--model`, `--transport stdio|streamable-http`, `--host`,
+`--port` and `--manifest`. `vaultkg-mcp` is the same command and still
+accepts `--vault` (and `--vault=PATH`) for `--repo`. The graph opens per
+session and closes after, and an unbuilt vault is refused instead of served
+empty.
 
-**The graph is untouched.** `add` only places sources; run `vaultkg build`
-afterwards. No model is involved, so the same files always produce the same
-notes.
+**Statistics in the fleet shape.** `VaultKG.stats()` returns `kind`, `nodes`
+(`total`, `by_kind`) and `edges` (`total`, `by_rel`), plus `meaningful_nodes`
+and the note, heading, tag and unresolved-link counts.
 
-**A configurable sources folder.** `raw_dir` in `.vaultkg/config.yaml` sets
-where `add` writes (default `RAW`).
+**Fixed:** against kgmodule-utils 0.29.0 the note, heading and tag counts read
+0 and the analysis report printed empty counts tables. Both read the new
+shape now.
 
 ## Upgrading
 
-```bash
-uv tool install --force --refresh "vault-kg[semantic,viz,viz3d,ingest]==0.5.0"
-```
-
-`vaultkg add` needs the new `ingest` extra. Nothing else changes.
+Rename the tools in agent instructions and scripts (`graph_stats` -> `stats`,
+`query_vault` -> `query`, `pack_vault` -> `pack`) and drop `--transport sse`
+from any config. Code that read `VaultKG.stats()["node_counts"]` reads
+`["nodes"]["by_kind"]` instead. vault-kg now needs kgmodule-utils 0.29.0, whose
+`[mcp]` extra brings the MCP SDK.
 
 ---
 

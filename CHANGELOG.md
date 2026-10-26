@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-26
+
 ### Changed
 
 - **BREAKING: the MCP server is built on `kg_utils.mcp`**, the fleet's shared
   server base (`kgrag_priv` MCP centralization plan, step 2). Needs
-  kgmodule-utils 0.29.0, unreleased; developed against its local wheel, with
-  the floor and lock left for the release pass. Tools take the canonical names
+  kgmodule-utils 0.29.0: the floor is `kgmodule-utils[mcp]>=0.29.0`, and its
+  `[mcp]` extra replaces the direct `mcp` pin. Tools take the canonical names
   every fleet KG server shares, with no aliases: `graph_stats` -> `stats`,
   `query_vault` -> `query`, `pack_vault` -> `pack`, plus the new `neighbors`.
   `get_node`, `note_links`, `analyze_vault` and the snapshot tools keep their
