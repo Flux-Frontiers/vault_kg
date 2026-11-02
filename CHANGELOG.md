@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-02
+
+### Security
+
+- **The `viz3d` extra floors quiltwright at 0.17.0**, the first quiltwright
+  release that floors Pillow at 13.0.0, so the extra cannot pull Pillow
+  12.3.0 and its 41 advisories in through it. The lock moves quiltwright to
+  0.17.0.
+- **Lock refresh** (#11): Pillow 13.0.0, certifi 2026.10.23, filelock 4.2.7,
+  setuptools 84.2.1 and virtualenv 21.15.2.
+
 ## [0.6.0] - 2026-10-26
 
 ### Changed

@@ -1,43 +1,26 @@
-# Release Notes -- v0.6.0
+# Release Notes -- v0.6.1
 
-> Released: 2026-10-26
+> Released: 2026-11-02
 
-VaultKG's MCP server now runs on the fleet's shared base, `kg_utils.mcp`, so
-its first five tools have the same names on every fleet KG server: `stats`,
-`query`, `pack`, `get_node` and `neighbors`. `note_links`, `analyze_vault` and
-the snapshot tools keep their names. Existing `vaultkg-mcp --vault` configs
-keep working.
+A security release for the 3-D extra. A pip install of `vault-kg[viz3d]`
+could resolve an older quiltwright and, through it, Pillow 12.3.0 and its 41
+advisories, some of them critical. The extra now floors quiltwright at
+0.17.0, the first release that floors Pillow at 13.0.0. Building, linking,
+analysis and the MCP tools do not change.
 
 ## What changed
 
-**Canonical tool names.** `graph_stats` is `stats`, `query_vault` is `query`
-and `pack_vault` is `pack`, with no aliases. The new `neighbors` tool walks a
-node's links in either direction and, like `get_node`, takes a note's vault
-path as well as its id. A missing node is now a tool error from `get_node`
-rather than `null`.
+**quiltwright 0.17.0 is the floor in `viz3d`.** The floor moves from 0.16.0
+to 0.17.0, which carries `pillow>=13.0.0` in its own metadata, so the extra
+always gets the patched Pillow. The lock moves quiltwright to 0.17.0.
 
-**One command, standard flags.** `vaultkg mcp` takes the fleet's `--repo`,
-`--db`, `--vectors`, `--model`, `--transport stdio|streamable-http`, `--host`,
-`--port` and `--manifest`. `vaultkg-mcp` is the same command and still
-accepts `--vault` (and `--vault=PATH`) for `--repo`. The graph opens per
-session and closes after, and an unbuilt vault is refused instead of served
-empty.
-
-**Statistics in the fleet shape.** `VaultKG.stats()` returns `kind`, `nodes`
-(`total`, `by_kind`) and `edges` (`total`, `by_rel`), plus `meaningful_nodes`
-and the note, heading, tag and unresolved-link counts.
-
-**Fixed:** against kgmodule-utils 0.29.0 the note, heading and tag counts read
-0 and the analysis report printed empty counts tables. Both read the new
-shape now.
+**The lock is refreshed.** Pillow 13.0.0, certifi, filelock, setuptools and
+virtualenv move to patched releases.
 
 ## Upgrading
 
-Rename the tools in agent instructions and scripts (`graph_stats` -> `stats`,
-`query_vault` -> `query`, `pack_vault` -> `pack`) and drop `--transport sse`
-from any config. Code that read `VaultKG.stats()["node_counts"]` reads
-`["nodes"]["by_kind"]` instead. vault-kg now needs kgmodule-utils 0.29.0, whose
-`[mcp]` extra brings the MCP SDK.
+`pip install -U "vault-kg[viz3d]"`; add `--refresh` if your installer caches
+the index. Existing vault graphs stay valid.
 
 ---
 
