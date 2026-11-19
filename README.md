@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/vaultkg_banner.png" alt="VaultKG" width="720"/>
+  <img src="https://raw.githubusercontent.com/Flux-Frontiers/vault_kg/main/assets/vaultkg_banner.png" alt="VaultKG" width="720"/>
 </p>
 
 [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/)

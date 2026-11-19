@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PNGs. The README header shows the banner, and the docs site shows the icon
   as its header logo and favicon (`docs/assets/`, set in `mkdocs.yml`).
 
+### Fixed
+
+- **README images show on PyPI.** The README's images used repository-relative
+  paths, which PyPI cannot resolve, so its project page showed broken images.
+  They now use absolute `raw.githubusercontent.com` URLs pinned to `main`.
+
 ## [0.6.1] - 2026-11-02
 
 ### Security
